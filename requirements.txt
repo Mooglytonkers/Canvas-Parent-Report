@@ -1,0 +1,5 @@
+# Python 3.9 or newer.
+# WeasyPrint needs a few system libraries (Pango/GTK). If a PDF cannot be
+# built, the scripts fall back to HTML that you can open in a browser.
+# See the README for operating-system install notes.
+weasyprint>=62.0

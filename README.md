@@ -1,0 +1,354 @@
+# Canvas Missing Work Report
+
+A small, free tool that signs in to your school's Canvas site and builds a
+one-page report of a student's **missing** and **late** assignments, plus
+related teacher messages. You can print the PDF, keep a copy, or run it
+automatically on weekdays.
+
+This project is not affiliated with Instructure or Canvas.
+
+![Sample report for a fictional student named Alex Sample at Example High School](examples/sample_preview.png)
+
+The screenshot above is a **sample** built from made-up data (student
+“Alex Sample,” Example High School). Your report will use your student's
+real courses and assignments.
+
+## What it does
+
+- Lists work that is missing or late, starting from a date you choose.
+- By default, anything that already has a grade is treated as submitted
+  and is left off the missing list. A **late** flag can still appear.
+- Includes a teacher message when it is tied to a flagged assignment, or
+  when it is a class-wide notice about grades or missing work.
+- Saves a printable one-page PDF. If a PDF cannot be built on your
+  computer, it writes an HTML file you can open in a browser and print.
+- Optionally, after each report, marks graded items done on the student's
+  Canvas To Do list. This is **off** until you turn it on. It only changes
+  checkmarks; it does not submit work or change grades.
+
+## What you need
+
+- A computer running Windows, macOS, or Linux
+- [Python 3.9 or newer](https://www.python.org/downloads/)
+- A Canvas account that can see the student's work, and a personal
+  access token (step 4 below)
+- An internet connection when the report runs
+
+---
+
+## Step-by-step setup
+
+### 1. Install Python
+
+- **Windows:** Go to [python.org/downloads](https://www.python.org/downloads/)
+  and install Python 3.9 or newer. On the first installer screen, check
+  **Add python.exe to PATH**, then click Install.
+- **macOS:** Install from [python.org](https://www.python.org/downloads/)
+  or, if you use Homebrew, run `brew install python`.
+- **Linux:** Use your package manager, for example
+  `sudo apt install python3 python3-pip python3-venv`.
+
+To check, open a terminal (on Windows, PowerShell or Command Prompt) and run:
+
+```bash
+python3 --version
+```
+
+On some Windows installs the command is `python` or `py -3` instead of
+`python3`. Any of those is fine as long as the version is 3.9 or higher.
+
+### 2. Download this project
+
+If you received a zip file, unzip it into a folder you can find later,
+for example your Documents folder.
+
+If you are using Git:
+
+```bash
+git clone https://github.com/YOUR-USERNAME/canvas-parent-report.git
+cd canvas-parent-report
+```
+
+Replace the URL with the address of the repository you actually cloned.
+
+### 3. Install the Python packages
+
+Open a terminal in the project folder and run:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+On Windows, `python` or `py -3` may be the command that works.
+
+The PDF library (WeasyPrint) also needs a few system libraries:
+
+- **Windows:** Install the
+  [GTK3 runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer)
+  and restart the terminal.
+- **macOS (Homebrew):** `brew install pango gdk-pixbuf libffi`
+- **Debian or Ubuntu:**
+  `sudo apt install libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev shared-mime-info`
+
+If PDF generation still fails, the tool writes an HTML report instead.
+Open that file in a browser and use the browser's Print command.
+
+### 4. Create a Canvas access token
+
+A token is a password-like code that lets this tool read Canvas on your
+behalf. Treat it like a password. Do not email it, put it in a screenshot,
+or commit it to GitHub.
+
+1. Sign in to your school's Canvas website in a browser.
+2. Click **Account** (usually your avatar) and then **Settings**.
+3. Scroll to **Approved Integrations** and click **+ New Access Token**.
+4. Give it a name such as “Missing work report” and, if you like, an
+   expiration date. Then click **Generate Token**.
+5. Copy the token now. Canvas will not show the full value again.
+
+**If you do not see “+ New Access Token”:** some schools turn this off.
+Ask your school's Canvas or technology office whether personal access
+tokens can be enabled for you.
+
+#### Should I use the student's login or a parent account?
+
+**Student account (simplest, all features).** Sign in as the student,
+create the token there, and you are done. This can read missing work,
+the planner, submissions, teacher comments on work, and the student's
+Canvas inbox. The optional “mark graded To Dos done” feature only works
+with this kind of token.
+
+**Parent / observer account (supported, with limits).** If you already
+have a Canvas observer account linked to your student, you can create
+the token while signed in as yourself.
+
+- This can read missing work, planner items, and the student's
+  assignment submissions (including teacher comments on that work).
+- Canvas's Conversations API only returns mail for the account that
+  owns the token, so the report will include messages in the **parent**
+  inbox, not the student's private inbox.
+- “Mark graded To Dos done” is automatically skipped. Planner
+  checkmarks would apply to the parent account, not the student.
+
+If your observer account is linked to more than one student, set
+`student_user_id` in `config.ini` to that student's Canvas user ID.
+You can list linked students with:
+
+```bash
+python3 fetch_canvas.py --list-observees
+```
+
+If it is linked to exactly one student, the tool detects that automatically.
+
+The setup wizard in the next step can also check the token for you.
+
+### 5. Configure
+
+The easiest path is the setup wizard, which asks a few questions and
+writes the files for you (the token is hidden as you type):
+
+```bash
+python3 setup_wizard.py
+```
+
+On Windows you can double-click `setup.bat`, or run `py -3 setup_wizard.py`.
+
+To configure by hand instead:
+
+1. Copy `config.example.ini` to `config.ini` and edit it.
+2. Copy `.env.example` to `.env`.
+3. In `.env`, set `CANVAS_BASE_URL` to your school's Canvas address
+   (for example `https://yourschool.instructure.com`) and paste
+   `CANVAS_TOKEN=...` on the next line.
+
+Do not put the token in `config.ini`. `.env` and `config.ini` are listed
+in `.gitignore` so they are not published by accident.
+
+Settings you will usually want to review in `config.ini`:
+
+| Setting | What it does |
+| --- | --- |
+| `base_url` | Your school's Canvas website |
+| `student_name`, `school_name` | Names on the PDF header |
+| `start_date` | Only include work due on or after this date (`YYYY-MM-DD`) |
+| `timezone` | Time zone for due dates, such as `America/New_York` |
+| `graded_counts_as_submitted` | Default `true`. Graded work is left off the missing list; late work can still appear |
+| `mark_graded_todos_done` | Default `false`. See the note below |
+| `output_dir` | Where JSON and PDF files are saved (default: `output`) |
+| `student_user_id` | Only for a parent account linked to more than one student |
+| `notice_keywords` | Words that identify a class-wide notice about grades or missing work |
+| `print_command` | Optional command to send the PDF to a printer |
+
+**About marking To Do items done.** If you turn `mark_graded_todos_done`
+on, each run will mark graded planner items complete on the student's
+Canvas To Do list. Only checkmarks change. Nothing is submitted and no
+grades are edited. Leave this off until you have looked at a report and
+are comfortable with the change. It is skipped automatically when you use
+a parent/observer token.
+
+You can also set most of these values with environment variables of the
+same name (`CANVAS_BASE_URL`, `STUDENT_NAME`, `START_DATE`, and so on).
+Environment variables override `config.ini`. `CANVAS_TOKEN` is only read
+from the environment or `.env`, never from `config.ini`.
+
+### 6. Do a test run
+
+From the project folder:
+
+```bash
+python3 run_report.py
+```
+
+Or, on Windows, double-click `run_report.bat`, or in PowerShell run
+`.\run_report.ps1`. On macOS or Linux you can run `./run_report.sh`.
+
+You should get:
+
+- A JSON data file and a PDF (or HTML fallback) in the `output` folder
+- A short table printed in the terminal
+
+To build the sample PDF from the fictional example data (no token needed):
+
+```bash
+python3 make_report.py examples/sample_data.json -o examples/Alex_Sample_Canvas_Report_2026-11-22.pdf
+```
+
+If something goes wrong, see [Troubleshooting](#troubleshooting).
+
+### 7. Schedule it twice a day (optional)
+
+A common choice is weekdays at 6:45 in the morning and 6:45 in the
+evening, in your local time. Change the times if you like.
+
+#### Windows Task Scheduler
+
+1. Open **Task Scheduler** (you can search for it in the Start menu).
+2. Click **Create Basic Task…** and name it, for example,
+   “Canvas missing work report”.
+3. For the trigger, choose **Daily**, then set the start time to
+   6:45 AM. You will add the evening run in a moment.
+4. For the action, choose **Start a program**.
+5. In **Program/script**, browse to `run_report.bat` in this project
+   folder (or enter `py` and put `-3 run_report.py` in arguments, with
+   **Start in** set to this project folder).
+6. Finish the wizard. Then open the new task's **Properties**:
+   - On the **General** tab, choose **Run whether user is logged on or
+     not** if you want it to run while the computer is locked, and check
+     **Run with highest privileges** only if a test run fails without it.
+   - On the **Triggers** tab, click **New…** and add a second daily
+     trigger for 6:45 PM.
+   - To skip weekends: edit each trigger, check **Advanced**, and repeat
+     the task every 1 day, or use **Weekly** and check Monday–Friday
+     only (often the simplest).
+7. Right-click the task and choose **Run** once to confirm a report
+   appears in the `output` folder.
+
+The computer needs to be turned on, and awake, at those times. If it is
+asleep or off, Windows will not run the task unless you also enable
+“Wake the computer to run this task” in the task's Conditions tab
+(and the computer supports it).
+
+#### macOS or Linux (cron)
+
+In a terminal, run `crontab -e` and add a line like this, adjusting the
+path to where you unzipped the project:
+
+```cron
+45 6,18 * * 1-5 /full/path/to/canvas-parent-report/run_report.sh
+```
+
+That means 6:45 AM and 6:45 PM, Monday through Friday. Cron uses the
+computer's local time zone. Make sure `python3` is on the PATH that cron
+sees, or edit `run_report.sh` to use a full path such as
+`/usr/bin/python3`.
+
+On macOS you can also use a Launch Agent or the Shortcuts / Automator
+apps if you prefer a point-and-click scheduler.
+
+---
+
+## Optional printing
+
+To send each report to a printer automatically, either:
+
+- Run `python3 run_report.py --print` (Windows uses the default printer;
+  macOS and Linux use the `lp` command), or
+- Set `print_command` in `config.ini`. Use `{pdf}` as the placeholder
+  for the file path, for example `lp -d PrinterName {pdf}`.
+
+The computer and printer both need to be available when the report runs.
+
+---
+
+## Troubleshooting
+
+**“CANVAS_TOKEN is not set.”**  
+Copy `.env.example` to `.env` and paste your token, or set the
+`CANVAS_TOKEN` environment variable. Then run from the project folder
+so the script can find `.env`.
+
+**Canvas API returned 401 Unauthorized.**  
+The token is expired, revoked, or typed incorrectly, or the school has
+disabled personal access tokens. Create a new token under Account >
+Settings and update `.env`. If the “New Access Token” button is missing,
+ask the school.
+
+**Nothing shows up, but you know work is missing.**  
+Check `start_date` — work due before that date is ignored. Check that
+`graded_counts_as_submitted` is doing what you expect (graded items are
+hidden by default). Confirm `base_url` is the same website you use in
+the browser, including `https://`. If you use a parent account, run
+`python3 fetch_canvas.py --list-observees` and set `student_user_id`
+if more than one student is listed.
+
+**The report is HTML, not a PDF.**  
+WeasyPrint or its system libraries are missing. See step 3, or open the
+HTML file in a browser and print from there.
+
+**“This account observes more than one student.”**  
+Set `student_user_id` in `config.ini` to the ID printed in that error
+(or from `--list-observees`).
+
+**Token works at school in the browser, but the script cannot sign in.**  
+Some schools allow passwords but block API tokens, or they require a
+VPN. Try from the same network you use for Canvas, and confirm that
+Account > Settings still shows the token as active.
+
+---
+
+## Privacy
+
+- Your Canvas access token is as powerful as a password for that
+  account. Keep `.env` private. Do not upload it, commit it, or paste
+  it into a chat or email.
+- Reports in the `output` folder contain the student's course and
+  assignment names. Treat those as personal information too.
+- This tool talks only to the Canvas website you configure. It does not
+  send your token or report data anywhere else.
+
+---
+
+## Command reference
+
+| Command | Purpose |
+| --- | --- |
+| `python3 setup_wizard.py` | Guided setup |
+| `python3 run_report.py` | Fetch data, build the PDF, follow config options |
+| `python3 run_report.py --print` | Same, then send the PDF to a printer |
+| `python3 run_report.py --no-todo` | Build the report without changing To Do checkmarks |
+| `python3 fetch_canvas.py --list-observees` | List students linked to a parent account |
+| `python3 make_report.py data.json` | Rebuild a PDF from a saved JSON file |
+| `python3 mark_graded_done.py --dry-run` | Show how many To Do items would be marked, without changing anything |
+
+`run_report.sh`, `run_report.bat`, and `run_report.ps1` are thin wrappers
+around `run_report.py` and accept the same flags.
+
+---
+
+## License
+
+[MIT](LICENSE). Copyright (c) 2026 Cooper Street Press.
+
+This is unofficial software, provided as-is, with no warranty. You are
+responsible for following your school's acceptable-use rules when you
+create a token and run the report.

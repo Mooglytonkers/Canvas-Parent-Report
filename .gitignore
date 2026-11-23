@@ -1,0 +1,26 @@
+# Secrets and local settings — never publish these
+.env
+.env.*
+!.env.example
+config.ini
+*.local.ini
+
+# Generated reports
+output/*
+!output/.gitkeep
+data_*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,45 @@
+{
+  "student": "Alex Sample",
+  "school": "Example High School",
+  "title": "Canvas Missing Work Report",
+  "scope": "Assignments due Nov 1, 2026 onward",
+  "generated_at": "2026-11-22T18:45:00-05:00",
+  "timezone": "America/New_York",
+  "graded_counts_as_submitted": true,
+  "account_mode": "student",
+  "missing": [
+    {
+      "course": "English 10",
+      "assignment": "Essay: Hometown Story",
+      "due": "2026-11-18",
+      "score": null,
+      "comment": null
+    },
+    {
+      "course": "World History",
+      "assignment": "Map Skills Worksheet",
+      "due": "2026-11-20",
+      "score": null,
+      "comment": "Please turn this in before Friday. — Ms. Rivera"
+    }
+  ],
+  "late": [
+    {
+      "course": "Geometry",
+      "assignment": "Lesson 5 Practice Set",
+      "due": "2026-11-13",
+      "score": 4,
+      "comment": null
+    }
+  ],
+  "teacher_messages": [
+    {
+      "course": "Chemistry",
+      "teacher": "Ms. Nguyen",
+      "assignment": "Reminder: missing lab reports",
+      "sent": "2026-11-12",
+      "message": "Families, a few lab reports from last week are still missing. Please check the grade book. — Ms. Nguyen"
+    }
+  ],
+  "notes": []
+}
