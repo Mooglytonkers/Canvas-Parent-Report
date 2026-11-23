@@ -546,16 +546,15 @@ class HeadlessTests(unittest.TestCase):
         self.assertIn("hold_window_mutex", app_source)
 
     def test_headless_entry_point_does_not_call_the_checker(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            os.environ["CPR_APP_DIR"] = tmp
-            with mock.patch("desktop.runner.run_headless", return_value=0) as run:
-                with mock.patch("desktop.updates.check_for_update") as check:
+        with mock.patch("desktop.runner.run_headless", return_value=0) as run:
+            with mock.patch("desktop.updates.check_for_update") as check:
+                with mock.patch("desktop_app.setup_logging"):
                     import desktop_app
 
                     code = desktop_app.main(["--run"])
-            self.assertEqual(code, 0)
-            run.assert_called_once()
-            check.assert_not_called()
+        self.assertEqual(code, 0)
+        run.assert_called_once()
+        check.assert_not_called()
 
 
 class ReleaseMetadataTests(unittest.TestCase):
