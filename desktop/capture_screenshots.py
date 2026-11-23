@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("CPR_UI_PLATFORM", "win32")
+os.environ["CPR_SKIP_UPDATE_CHECK"] = "1"
 
 
 def main() -> int:

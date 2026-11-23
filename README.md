@@ -17,7 +17,7 @@ assignments from the Canvas account you connect.
 ## Download and install
 
 1. Open the [Releases](https://github.com/Mooglytonkers/Canvas-Parent-Report/releases) page for this project.
-2. Download **CanvasParentReport-Setup-2.0.0.exe**.
+2. Download **CanvasParentReport-Setup-2.2.0.exe**.
 3. Double-click the installer and follow the steps. It installs just for your Windows account, so it should not ask for an administrator password.
 4. Open **Canvas Parent Report** from the Start menu.
 5. Follow the setup screens. They ask for the school website, a Canvas access token, where to save the PDF, and whether to print, email, or run on a schedule.
@@ -31,6 +31,20 @@ Your Canvas token and email password are stored in Windows Credential Manager. T
 The installer is not code-signed, so SmartScreen may warn you. That is normal for an unsigned download. Choose **More info**, then **Run anyway**.
 
 Only download the installer from this project's Releases page. You do not need to buy a code-signing certificate to install or use the app.
+
+### Updates
+
+Open the app and it looks for a newer GitHub Release in the background. If you are offline, GitHub is limiting requests, or you already have the latest version, it stays quiet and does not slow startup.
+
+**Check for updates** on the main window always tells you the result: checking, up to date (with the version you have), an update is available, or a short message if the check could not reach GitHub.
+
+When an update is available, the window offers **Update now** and **Later**, plus **View release notes**. Nothing installs until you choose Update now.
+
+On the installed Windows app, Update now downloads `CanvasParentReport-Setup-*.exe` from this project's releases over HTTPS. If the release includes `SHA256SUMS.txt` (or a `.sha256` file), the app checks the download against that checksum and stops if it does not match. A release with no checksum file still installs, and the window says so. The app then closes, the installer replaces the program in place, and the app opens again. Settings, the Canvas token, and the Windows scheduled task are stored outside the install folder, so an update leaves them in place.
+
+If you are running from source, or you are not on Windows, the same check works. The button opens the Releases page instead of running a Windows installer.
+
+A scheduled report (`--run`) does not check for updates and does not show update prompts.
 
 ## What setup will ask for
 
@@ -501,6 +515,7 @@ has to be awake.
 - Reports in the `output` folder contain the student's course and
   assignment names. Treat those as personal information too.
 - The Canvas token is sent only to the Canvas website you configure.
+- The update check contacts GitHub Releases only. It does not send your Canvas token, settings, or report.
 - If email is turned on, the PDF and the missing/late summary are sent
   through the SMTP server you set (for example Gmail or Outlook) to the
   addresses in `EMAIL_TO`. The SMTP password stays in `.env` on this

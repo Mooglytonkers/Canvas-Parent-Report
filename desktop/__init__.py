@@ -1,3 +1,3 @@
 """Windows desktop app for Canvas Parent Report."""
 
-__version__ = "2.1.0"
+from desktop.version import APP_VERSION as __version__
