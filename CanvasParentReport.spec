@@ -8,6 +8,7 @@ datas = [
     ("assets/icon.ico", "assets"),
     ("assets/icon.png", "assets"),
     ("assets/chevron.png", "assets"),
+    ("assets/fonts", "assets/fonts"),
 ]
 for package in ("keyring.backends", "reportlab"):
     try:
