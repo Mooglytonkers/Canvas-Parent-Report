@@ -10,7 +10,7 @@ on:
       tag:
         description: Existing tag to build and attach to its GitHub Release
         required: true
-        default: v2.0.0
+        default: v2.2.0
         type: string
 
 jobs:
@@ -18,6 +18,9 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact: ${{ steps.version.outputs.artifact }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +37,18 @@ jobs:
 
       - name: Unit tests
         run: python -m unittest discover -s tests -v
+
+      - name: Read the app version
+        id: version
+        shell: pwsh
+        run: |
+          $iss = Get-Content -Raw "installer\CanvasParentReport.iss"
+          if ($iss -notmatch '#define MyAppVersion "([0-9]+\.[0-9]+\.[0-9]+)"') {
+            throw "MyAppVersion was not found in the Inno Setup script."
+          }
+          $version = $Matches[1]
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "artifact=CanvasParentReport-Setup-$version" >> $env:GITHUB_OUTPUT
 
       - name: Build the app folder
         run: pyinstaller --noconfirm --clean CanvasParentReport.spec
@@ -55,11 +70,23 @@ jobs:
           Write-Host "Using $iscc"
           & $iscc "installer\CanvasParentReport.iss"
 
+      - name: Write SHA-256 checksum
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $exe = "installer\Output\CanvasParentReport-Setup-$version.exe"
+          if (-not (Test-Path $exe)) { throw "Installer was not built: $exe" }
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $exe).Hash.ToLower()
+          $name = Split-Path $exe -Leaf
+          Set-Content -Path "installer\Output\SHA256SUMS.txt" -Value "$hash  $name" -Encoding ascii
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CanvasParentReport-Setup-2.1.0
-          path: installer/Output/CanvasParentReport-Setup-2.1.0.exe
+          name: ${{ steps.version.outputs.artifact }}
+          path: |
+            installer/Output/CanvasParentReport-Setup-${{ steps.version.outputs.version }}.exe
+            installer/Output/SHA256SUMS.txt
           if-no-files-found: error
 
   release:
@@ -73,22 +100,22 @@ jobs:
       - name: Download installer
         uses: actions/download-artifact@v4
         with:
-          name: CanvasParentReport-Setup-2.1.0
+          name: ${{ needs.installer.outputs.artifact }}
           path: installer/Output
 
       - name: Attach installer to the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          name: Canvas Parent Report 2.1.0
+          name: Canvas Parent Report ${{ needs.installer.outputs.version }}
           body: |
-            Download CanvasParentReport-Setup-2.1.0.exe below, then double-click it.
+            Download the CanvasParentReport-Setup exe attached to this release, then double-click it.
 
-            What's new:
-            - Optional To Do detail pages. They stay off until you turn them on.
-            - Choose how often the report runs: twice a day, once a day, or once a week.
+            SHA256SUMS.txt is the SHA-256 checksum for that installer. The installed app checks the download against this file before it runs an update. Your settings, Canvas token, and scheduled report stay in place.
 
             Windows may say it protected your PC. Choose More info, then Run anyway.
-          files: installer/Output/CanvasParentReport-Setup-2.1.0.exe
+          files: |
+            installer/Output/CanvasParentReport-Setup-${{ needs.installer.outputs.version }}.exe
+            installer/Output/SHA256SUMS.txt
           overwrite_files: true
           fail_on_unmatched_files: false

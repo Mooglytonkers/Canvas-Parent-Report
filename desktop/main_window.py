@@ -26,6 +26,7 @@ from desktop.runner import RunResult, execute_report
 from desktop.schedule import friendly_when, next_occurrence, schedule_plan
 from desktop.store import load_config, load_history
 from desktop.theme import style_primary
+from desktop.update_ui import UpdateController, UpdatePrompt
 from desktop.version import APP_NAME, APP_VERSION
 from desktop.workers import FnWorker
 
@@ -82,11 +83,21 @@ class MainWindow(QWidget):
         titles.addWidget(tag)
         header.addLayout(titles)
         header.addStretch(1)
+        self.check_button = QPushButton("Check for updates")
+        self.check_button.setObjectName("secondary")
+        self.check_button.setMinimumSize(176, 40)
+        self.check_button.setToolTip("Look for a newer version of this app")
+        self.check_button.clicked.connect(self.check_for_updates)
+        header.addWidget(self.check_button)
         settings = QPushButton("Settings")
         settings.setObjectName("secondary")
+        settings.setMinimumHeight(40)
         settings.clicked.connect(self.open_settings)
         header.addWidget(settings)
         root.addLayout(header)
+
+        self.update_prompt = UpdatePrompt()
+        root.addWidget(self.update_prompt)
 
         self.banner = Banner()
         root.addWidget(self.banner)
@@ -171,6 +182,7 @@ class MainWindow(QWidget):
         version = QLabel(f"Version {APP_VERSION}")
         version.setObjectName("muted")
         root.addWidget(version)
+        self._updates = UpdateController(self)
         self.refresh()
 
     def _prepare_table(self, table: QTableWidget, *, stretch: int, right_columns: set[int]) -> None:
@@ -204,6 +216,17 @@ class MainWindow(QWidget):
         label = QLabel(text)
         label.setObjectName("fieldLabel")
         return label
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._updates.start_automatic_once()
+
+    def closeEvent(self, event) -> None:
+        self._updates.shutdown()
+        super().closeEvent(event)
+
+    def check_for_updates(self) -> None:
+        self._updates.start_manual()
 
     def show_banner(self, kind: str, text: str) -> None:
         self.banner.show_message(kind, text)

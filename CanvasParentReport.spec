@@ -33,6 +33,8 @@ a = Analysis(
         "desktop.runner",
         "desktop.wizard",
         "desktop.main_window",
+        "desktop.updates",
+        "desktop.update_ui",
         "keyring.backends.Windows",
         "report_pdf",
         "reportlab.pdfgen",

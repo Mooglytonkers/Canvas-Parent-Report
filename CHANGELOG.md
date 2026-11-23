@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.0 — 2026-11-23
+
+- The desktop app checks GitHub Releases for a newer version. Opening the window checks quietly in the background. Check for updates on the main window explains the result.
+- On the installed Windows app, Update now downloads the installer, verifies SHA-256 when the release includes a checksum file, and runs the installer. Settings, the Canvas token, and the scheduled task stay in place.
+- Scheduled report runs do not check for updates.
+
 ## 2.1.0 — 2026-11-23
 
 - Optional To Do detail pages, off by default. After the summary, the PDF can add one card per open To Do item: overdue work from the start date, plus items due in the next 14 days.
