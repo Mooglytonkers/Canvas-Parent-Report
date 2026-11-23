@@ -43,6 +43,20 @@ def setup_logging() -> None:
     _READY = True
 
 
+def close_logging() -> None:
+    """Close the log file and allow a later setup to open a new one.
+
+    Windows keeps the file locked until the handler is closed, so tests
+    that use a temporary app folder call this before deleting that folder.
+    """
+    global _READY
+    root = logging.getLogger("canvasparent")
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+        handler.close()
+    _READY = False
+
+
 def get_logger() -> logging.Logger:
     setup_logging()
     return logging.getLogger("canvasparent")

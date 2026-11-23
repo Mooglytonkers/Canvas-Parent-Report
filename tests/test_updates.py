@@ -546,15 +546,34 @@ class HeadlessTests(unittest.TestCase):
         self.assertIn("hold_window_mutex", app_source)
 
     def test_headless_entry_point_does_not_call_the_checker(self) -> None:
-        with mock.patch("desktop.runner.run_headless", return_value=0) as run:
-            with mock.patch("desktop.updates.check_for_update") as check:
-                with mock.patch("desktop_app.setup_logging"):
-                    import desktop_app
+        from desktop.logging_setup import close_logging
 
-                    code = desktop_app.main(["--run"])
-        self.assertEqual(code, 0)
-        run.assert_called_once()
-        check.assert_not_called()
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["CPR_APP_DIR"] = tmp
+            try:
+                with mock.patch("desktop.runner.run_headless", return_value=0) as run:
+                    with mock.patch("desktop.updates.check_for_update") as check:
+                        import desktop_app
+
+                        code = desktop_app.main(["--run"])
+                self.assertEqual(code, 0)
+                run.assert_called_once()
+                check.assert_not_called()
+            finally:
+                close_logging()
+
+    def test_close_logging_releases_the_log_file(self) -> None:
+        from desktop.logging_setup import close_logging, get_logger
+
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["CPR_APP_DIR"] = tmp
+            close_logging()
+            get_logger().info("headless run started")
+            log_path = Path(tmp) / "logs" / "app.log"
+            self.assertTrue(log_path.is_file())
+            close_logging()
+            log_path.unlink()
+            self.assertFalse(log_path.exists())
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -612,6 +631,9 @@ class UpdateUiTests(unittest.TestCase):
         os.environ["CPR_APP_DIR"] = self._tmp.name
 
     def tearDown(self) -> None:
+        from desktop.logging_setup import close_logging
+
+        close_logging()
         self._tmp.cleanup()
 
     def _window(self):
