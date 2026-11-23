@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import re
 import sys
 from datetime import datetime
@@ -703,6 +704,30 @@ def write_html_file(data: dict, output: Path) -> Path:
     return output
 
 
+def _write_html_fallback(html_doc: str, output: Path, warning: str) -> Path:
+    target = output.with_suffix(".html")
+    target.write_text(html_doc, encoding="utf-8")
+    print(warning, file=sys.stderr)
+    return target
+
+
+def _write_with_reportlab(data: dict, output: Path) -> bool:
+    """Return True when ReportLab wrote a PDF. Used by the Windows app."""
+    try:
+        from report_pdf import write_report_pdf
+    except ImportError:
+        return False
+    try:
+        write_report_pdf(data, output)
+    except Exception as exc:
+        print(
+            f"warning: ReportLab could not build the PDF ({exc.__class__.__name__}).",
+            file=sys.stderr,
+        )
+        return False
+    return output.is_file()
+
+
 def write_pdf(data: dict, output: Path, *, prefer_html: bool = False) -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
     html_doc = build_html(data)
@@ -710,31 +735,52 @@ def write_pdf(data: dict, output: Path, *, prefer_html: bool = False) -> Path:
         target = output if output.suffix.lower() in {".html", ".htm"} else output.with_suffix(".html")
         target.write_text(html_doc, encoding="utf-8")
         return target
+    engine = (os.environ.get("CPR_PDF_ENGINE") or "").strip().lower()
+    # The desktop app sets this so a Windows install does not need GTK.
+    if engine == "reportlab":
+        if _write_with_reportlab(data, output):
+            return output
+        return _write_html_fallback(
+            html_doc,
+            output,
+            "warning: ReportLab is not available, so an HTML report was written instead.\n"
+            f"  {output.with_suffix('.html')}",
+        )
     try:
         from weasyprint import HTML
     except ImportError:
-        target = output.with_suffix(".html")
-        target.write_text(html_doc, encoding="utf-8")
-        print(
+        if _write_with_reportlab(data, output):
+            print(
+                "warning: WeasyPrint is not installed. A PDF was built with ReportLab instead.",
+                file=sys.stderr,
+            )
+            return output
+        return _write_html_fallback(
+            html_doc,
+            output,
             "warning: WeasyPrint is not installed, so an HTML report was written "
-            f"instead of a PDF:\n  {target}\n"
+            f"instead of a PDF:\n  {output.with_suffix('.html')}\n"
             "Open it in a browser and use Print, or install WeasyPrint (see the README).",
-            file=sys.stderr,
         )
-        return target
     try:
         HTML(string=html_doc, base_url=str(output.parent)).write_pdf(str(output))
     except Exception as exc:
-        target = output.with_suffix(".html")
-        target.write_text(html_doc, encoding="utf-8")
-        print(
+        if _write_with_reportlab(data, output):
+            print(
+                "warning: WeasyPrint could not build a PDF "
+                f"({exc.__class__.__name__}). A PDF was built with ReportLab instead.",
+                file=sys.stderr,
+            )
+            return output
+        return _write_html_fallback(
+            html_doc,
+            output,
             "warning: PDF generation failed "
-            f"({exc.__class__.__name__}). An HTML report was written instead:\n  {target}\n"
+            f"({exc.__class__.__name__}). An HTML report was written instead:\n"
+            f"  {output.with_suffix('.html')}\n"
             "This usually means WeasyPrint's system libraries (Pango/GTK) are missing. "
             "See the README for install notes.",
-            file=sys.stderr,
         )
-        return target
     return output
 
 

@@ -1,17 +1,52 @@
-# Canvas Missing Work Report
+# Canvas Parent Report
 
-A small, free tool that signs in to your school's Canvas site and builds a
-one-page report of a student's **missing** and **late** assignments, plus
-related teacher messages. Reports can be saved, emailed, and/or printed
-automatically, including on a weekday schedule.
+A Windows app for parents. It signs in to your school's Canvas site and
+builds a one-page report of a student's missing and late assignments.
+Reports can be saved, emailed, and/or printed automatically.
+
+You do not need to install Python or type any commands.
 
 This project is not affiliated with Instructure or Canvas.
 
 ![Sample report for a fictional student named Alex Sample at Example High School](examples/sample_preview.png)
 
-The screenshot above is a **sample** built from made-up data (student
-“Alex Sample,” Example High School). Your report will use your student's
-real courses and assignments.
+The picture above is a **sample** made from fictional information (student
+“Alex Sample,” Example High School). Your report uses the courses and
+assignments from the Canvas account you connect.
+
+## Download and install
+
+1. Open the [Releases](https://github.com/Mooglytonkers/Canvas-Parent-Report/releases) page for this project.
+2. Download **CanvasParentReport-Setup-2.0.0.exe**.
+3. Double-click the installer and follow the steps. It installs just for your Windows account, so it should not ask for an administrator password.
+4. Open **Canvas Parent Report** from the Start menu.
+5. Follow the setup screens. They ask for the school website, a Canvas access token, where to save the PDF, and whether to print, email, or run on a schedule.
+
+The usual schedule is Monday through Friday at 6:45 AM and 6:45 PM. The computer needs to be on and signed in at those times. If it was asleep, you can ask the app to run the missed report the next time you sign in.
+
+Your Canvas token and email password are stored in Windows Credential Manager. They are not written into the settings file.
+
+### If Windows says it protected your PC
+
+The installer is not code-signed, so SmartScreen may warn you. That is normal for an unsigned download. Choose **More info**, then **Run anyway**.
+
+Only download the installer from this project's Releases page. You do not need to buy a code-signing certificate to install or use the app.
+
+## What setup will ask for
+
+- The school's Canvas address, such as `https://yourschool.instructure.com`
+- An access token. The token screen has a **How do I get this?** guide and a button that opens the Canvas settings page
+- The student's name, the school name, and the earliest due date to include
+- A folder for the PDF. Printing and email are off until you turn them on
+- Optional weekday times
+
+---
+
+## Advanced / other platforms
+
+The rest of this page is for running the same report from Python on Windows, macOS, or Linux, without the desktop app. The Windows app above is the path for parents. The command-line tools are optional.
+
+The packaged app builds PDFs with ReportLab. The Python commands below still prefer WeasyPrint when it is installed, and fall back to ReportLab or HTML.
 
 ## What it does
 
