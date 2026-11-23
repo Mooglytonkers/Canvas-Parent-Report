@@ -773,12 +773,13 @@ def build_report(settings: Settings) -> dict[str, Any]:
             "come from the parent inbox; the student's private inbox is not included."
         )
 
-    return {
+    report = {
         "student": student_name,
         "school": school_name,
         "title": "Canvas Missing Work Report",
         "scope": settings.scope_label(),
         "generated_at": generated.isoformat(timespec="seconds"),
+        "timezone": settings.timezone,
         "graded_counts_as_submitted": settings.graded_counts_as_submitted,
         "account_mode": mode,
         "missing": missing_rows,
@@ -786,6 +787,17 @@ def build_report(settings: Settings) -> dict[str, Any]:
         "teacher_messages": teacher_messages,
         "notes": notes,
     }
+    if getattr(settings, "todo_detail_page", False):
+        from todo_details import fetch_todo_details
+
+        report["todo_details"] = fetch_todo_details(
+            settings,
+            token,
+            student_id,
+            mode,
+            course_ids,
+        )
+    return report
 
 
 def print_markdown_table(data: dict[str, Any], file=None) -> None:

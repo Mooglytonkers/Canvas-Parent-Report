@@ -27,7 +27,7 @@ from desktop.forms import (
 )
 from desktop.paths import resource_path, secret_storage_note
 from desktop.printers import list_installed_printers
-from desktop.schedule import friendly_when, install_schedule, launch_parts, next_occurrence
+from desktop.schedule import friendly_when, install_schedule, launch_parts, next_occurrence, schedule_plan
 from desktop.secrets import get_smtp_password, get_token, set_smtp_password, set_token
 from desktop.store import AppConfig, load_config, save_config
 from desktop.version import APP_NAME
@@ -48,8 +48,8 @@ SUBTITLES = (
     "The code Canvas gives you. It stays on this computer.",
     "What parents see at the top of the PDF.",
     "Choose a folder, and turn printing or email on only if you want them.",
-    "Both of these can stay as they are.",
-    "Weekday mornings and evenings are a good start.",
+    "The defaults work for most families.",
+    "Choose how often the report should run.",
     "You can run a report now, or open the app and do it later.",
 )
 
@@ -271,14 +271,20 @@ class SetupWizard(QWidget):
         email_line = "Email is off."
         if config.email_enabled:
             email_line = f"Email is on, to {config.email_to}."
-        upcoming = next_occurrence(config.schedule_days, [config.morning, config.evening])
+        days, times = schedule_plan(config)
+        upcoming = next_occurrence(days, times)
         when = friendly_when(upcoming) if upcoming else "Not scheduled"
-        days = ", ".join(day.title() for day in config.schedule_days) or "no days"
+        day_text = ", ".join(day.title() for day in days) or "no days"
+        freq = {"twice": "Twice a day", "daily": "Once a day", "weekly": "Once a week"}.get(
+            config.frequency, "Twice a day"
+        )
+        detail = "To Do detail pages are on." if config.todo_detail_page else "To Do detail pages are off."
         return (
             f"<p>Reports will be saved in <b>{config.save_folder()}</b>.</p>"
             f"<p>{print_line}</p>"
             f"<p>{email_line}</p>"
-            f"<p>Schedule: {days}. Next run: {when}.</p>"
+            f"<p>{detail}</p>"
+            f"<p>Schedule: {freq}, {day_text}. Next run: {when}.</p>"
             "<p>Choose <b>Run a report now</b> to try it, or open the app and come back when you are ready.</p>"
         )
 

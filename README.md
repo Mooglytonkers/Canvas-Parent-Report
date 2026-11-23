@@ -38,7 +38,8 @@ Only download the installer from this project's Releases page. You do not need t
 - An access token. The token screen has a **How do I get this?** guide and a button that opens the Canvas settings page
 - The student's name, the school name, and the earliest due date to include
 - A folder for the PDF. Printing and email are off until you turn them on
-- Optional weekday times
+- How often to run: twice a day, once a day, or once a week
+- Optional extra pages with one card for each open To Do item. This stays off until you turn it on
 
 ---
 
@@ -212,6 +213,8 @@ Settings you will usually want to review in `config.ini`:
 | `timezone` | Time zone for due dates, such as `America/New_York` |
 | `graded_counts_as_submitted` | Default `true`. Graded work is left off the missing list; late work can still appear |
 | `mark_graded_todos_done` | Default `false`. See the note below |
+| `todo_detail_page` | `TODO_DETAIL_PAGE`. Default `false`. Add To Do detail pages after the summary |
+| `todo_days_ahead` | `TODO_DAYS_AHEAD`. Default `14`. How many days ahead those pages include |
 | `output_dir` | Where JSON and PDF files are saved (default: `output`) |
 | `student_user_id` | Only for a parent account linked to more than one student |
 | `notice_keywords` | Words that identify a class-wide notice about grades or missing work |

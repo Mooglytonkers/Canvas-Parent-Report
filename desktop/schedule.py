@@ -121,6 +121,28 @@ def schtasks_delete_command() -> list[str]:
     return ["schtasks", "/Delete", "/TN", TASK_NAME, "/F"]
 
 
+def schedule_plan(config) -> tuple[list[str], list[str]]:
+    """Days and times for the saved frequency.
+
+    Configs written before 2.1.0 have no frequency and mean twice a day.
+    """
+    frequency = str(getattr(config, "frequency", "") or "twice").strip().lower()
+    morning = str(getattr(config, "morning", "") or "06:45").strip() or "06:45"
+    evening = str(getattr(config, "evening", "") or "").strip()
+    daily = str(getattr(config, "daily_time", "") or morning).strip() or morning
+    weekly_day = str(getattr(config, "weekly_day", "") or "mon").strip().lower() or "mon"
+    days = [day for day in ("mon", "tue", "wed", "thu", "fri", "sat", "sun") if day in set(getattr(config, "schedule_days", []) or [])]
+    if frequency == "daily":
+        return days, [daily]
+    if frequency == "weekly":
+        return [weekly_day], [daily]
+    times = []
+    for clock in (morning, evening):
+        if clock and clock not in times:
+            times.append(clock)
+    return days, times
+
+
 def install_schedule(config, *, command: str, arguments: str) -> tuple[bool, str]:
     """Create or remove the Windows task. On other systems, only the settings are kept."""
     import subprocess
@@ -130,12 +152,8 @@ def install_schedule(config, *, command: str, arguments: str) -> tuple[bool, str
     from desktop.paths import app_dir
 
     log = get_logger()
-    times = []
-    for clock in (config.morning, config.evening):
-        text = (clock or "").strip()
-        if text and text not in times:
-            times.append(text)
-    if not config.schedule_days or not times:
+    days, times = schedule_plan(config)
+    if not days or not times:
         if sys.platform == "win32":
             subprocess.run(schtasks_delete_command(), capture_output=True, text=True, check=False)
         return True, "No schedule was created."
@@ -143,7 +161,7 @@ def install_schedule(config, *, command: str, arguments: str) -> tuple[bool, str
         xml = task_xml(
             command=command,
             arguments=arguments,
-            days=list(config.schedule_days),
+            days=days,
             times=times,
             run_missed=bool(config.run_missed_at_signin),
         )

@@ -188,6 +188,12 @@ output_dir = output
 # on the student's own account (not an observer/parent token).
 mark_graded_todos_done = {"true" if mark_todos else "false"}
 
+# TODO_DETAIL_PAGE. Off by default. Adds one card per open To Do item.
+todo_detail_page = false
+
+# TODO_DAYS_AHEAD. Days ahead to include, besides overdue work from start_date.
+todo_days_ahead = 14
+
 # Optional. If blank, the start_date above is used. Set an earlier date if
 # you also want older graded items marked done.
 todo_since_date =

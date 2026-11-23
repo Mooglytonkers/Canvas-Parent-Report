@@ -342,6 +342,35 @@ table.items tbody tr:nth-child(odd) td {
 .legend .pill { margin-right: 4px; vertical-align: 1px; }
 .legend span.leg-item { margin-right: 14px; white-space: nowrap; }
 
+.todo-pages { page-break-before: always; }
+.todo-card {
+  border: 1px solid #d5dde6;
+  border-left-width: 5px;
+  border-radius: 5px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  margin: 0 0 10px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.todo-missing { border-left-color: #c53030; }
+.todo-late { border-left-color: #c05621; }
+.todo-later { border-left-color: #2b6cb0; }
+.todo-top { display: flex; gap: 6px; align-items: center; }
+.todo-course { margin-left: auto; color: #4a5568; font-size: 9pt; font-weight: 600; }
+.todo-card h2 { margin: 6px 0 2px 0; font-size: 12pt; color: #1a2332; }
+.todo-due, .todo-card p { margin: 2px 0; font-size: 9.5pt; }
+.todo-kicker {
+  margin-top: 6px;
+  font-size: 7.5pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1b365d;
+  font-weight: 650;
+}
+.todo-locked { color: #7b341e; font-weight: 600; }
+.todo-card ul { margin: 2px 0 0 1.1em; padding: 0; }
+
 footer {
   flex: 0 0 auto;
   margin-top: 0.22in;
@@ -536,6 +565,89 @@ def render_row(row: dict) -> str:
     """
 
 
+def render_todo_html(data: dict) -> str:
+    details = data.get("todo_details") or {}
+    if not details.get("enabled"):
+        return ""
+    student = esc(data.get("student") or "Student")
+
+    def tile(count: int, label: str, css: str) -> str:
+        return (
+            f'<div class="tile {css}"><span class="count">{count}</span>'
+            f'<span class="tile-label">{esc(label)}</span></div>'
+        )
+
+    overdue = list(details.get("overdue") or [])
+    this_week = list(details.get("this_week") or [])
+    later = list(details.get("later") or [])
+    overdue_css = "tile-missing" + ("" if overdue else " tile-zero")
+    tiles = (
+        tile(len(overdue), "Overdue", overdue_css)
+        + tile(len(this_week), "Due this week", "tile-late")
+        + tile(len(later), "Due later", "tile-message")
+    )
+
+    def card(item: dict, bar: str) -> str:
+        messages = item.get("messages") or []
+        if messages:
+            message_html = "".join(f"<li>{esc(line)}</li>" for line in messages)
+        else:
+            message_html = "<li>No related messages.</li>"
+        link = str(item.get("html_url") or "").strip()
+        link_html = (
+            f' · <a href="{esc(link)}">Open in Canvas</a>' if link else ""
+        )
+        locked = str(item.get("locked_until") or "").strip()
+        locked_html = f'<p class="todo-locked">{esc(locked)}</p>' if locked else ""
+        description = str(item.get("description") or "").strip()
+        description_html = (
+            f'<p class="todo-kicker">Description</p><p>{esc(description)}</p>' if description else ""
+        )
+        rubric = str(item.get("rubric") or "").strip()
+        rubric_html = f"<p>{esc(rubric)}</p>" if rubric else ""
+        meta = esc(item.get("meta") or "")
+        return f"""
+        <article class="todo-card todo-{bar}">
+          <div class="todo-top">
+            <span class="pill pill-{bar if bar != 'later' else 'message'}">{esc(item.get('status_label') or '')}</span>
+            <span class="pill pill-message">{esc(item.get('type_label') or '')}</span>
+            <span class="todo-course">{esc(item.get('course') or '')}</span>
+          </div>
+          <h2>{esc(item.get('title') or 'Untitled')}</h2>
+          <p class="todo-due">{esc(item.get('due_label') or '')}</p>
+          <p>{meta}{link_html}</p>
+          {locked_html}
+          {description_html}
+          {rubric_html}
+          <p class="todo-kicker">Related messages</p>
+          <ul>{message_html}</ul>
+        </article>
+        """
+
+    sections = []
+    for heading, rows, bar in (
+        ("Overdue", overdue, "missing"),
+        ("Due this week", this_week, "late"),
+        ("Due later", later, "later"),
+    ):
+        if not rows:
+            continue
+        sections.append(f'<h3 class="section-label">{esc(heading)}</h3>' + "".join(card(row, bar) for row in rows))
+    if not sections:
+        sections.append("<p>Nothing is overdue in this date range, and nothing is due in the days ahead.</p>")
+    note = esc(details.get("observer_note") or "")
+    note_html = f'<p class="muted">{note}</p>' if note else ""
+    return f"""
+    <section class="todo-pages">
+      <h1>{student} — To Do — assignment details</h1>
+      <p class="subtitle">{esc(details.get('window_label') or '')}</p>
+      <div class="tiles">{tiles}</div>
+      {note_html}
+      {''.join(sections)}
+    </section>
+    """
+
+
 def footer_text(data: dict) -> str:
     if data.get("footer"):
         return str(data["footer"])
@@ -661,6 +773,8 @@ def build_html(data: dict) -> str:
   {notes_html}
   {legend}
   </div>
+
+  {render_todo_html(data)}
 
   <footer>
     <div class="left">{esc(footer_text(data))}</div>

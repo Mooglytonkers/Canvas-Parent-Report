@@ -47,6 +47,8 @@ _ENV_KEYS = (
     "GRADED_COUNTS_AS_SUBMITTED",
     "MARK_GRADED_TODOS_DONE",
     "TODO_SINCE_DATE",
+    "TODO_DETAIL_PAGE",
+    "TODO_DAYS_AHEAD",
     "OUTPUT_DIR",
     "STUDENT_USER_ID",
     "TIMEZONE",
@@ -200,6 +202,17 @@ def _as_copies(value: str | None) -> int:
     return copies
 
 
+def _as_days_ahead(value: str | None) -> int:
+    text = "14" if value is None or str(value).strip() == "" else str(value).strip()
+    try:
+        days = int(text)
+    except ValueError as exc:
+        raise ValueError(f"TODO_DAYS_AHEAD must be a number, got {value!r}.") from exc
+    if not 1 <= days <= 60:
+        raise ValueError(f"TODO_DAYS_AHEAD must be between 1 and 60, got {days}.")
+    return days
+
+
 def smtp_security(value: str | None, port: int) -> str:
     """Return 'starttls', 'ssl', or 'plain'. Port 465 always uses SSL."""
     text = "" if value is None else str(value).strip().lower()
@@ -228,6 +241,8 @@ class Settings:
     timezone: str = "America/New_York"
     graded_counts_as_submitted: bool = True
     mark_graded_todos_done: bool = False
+    todo_detail_page: bool = False
+    todo_days_ahead: int = 14
     todo_since_date: date | None = None
     output_dir: Path = field(default_factory=lambda: HERE / "output")
     student_user_id: int | None = None
@@ -316,6 +331,11 @@ def load_settings(config_path: Path | None = None, *, load_env: bool = True) -> 
         pick("MARK_GRADED_TODOS_DONE", "todo", "mark_graded_todos_done", "false"),
         False,
     )
+    todo_detail = _as_bool(
+        pick("TODO_DETAIL_PAGE", "todo", "todo_detail_page", "false"),
+        False,
+    )
+    todo_days_ahead = _as_days_ahead(pick("TODO_DAYS_AHEAD", "todo", "todo_days_ahead", "14"))
     todo_since = _as_date(pick("TODO_SINCE_DATE", "todo", "todo_since_date"), "TODO_SINCE_DATE")
 
     print_command = pick("PRINT_COMMAND", "print", "print_command")
@@ -353,6 +373,8 @@ def load_settings(config_path: Path | None = None, *, load_env: bool = True) -> 
         timezone=timezone,
         graded_counts_as_submitted=graded,
         mark_graded_todos_done=mark_done,
+        todo_detail_page=todo_detail,
+        todo_days_ahead=todo_days_ahead,
         todo_since_date=todo_since,
         output_dir=output_dir,
         student_user_id=student_user_id,

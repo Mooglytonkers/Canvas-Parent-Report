@@ -17,7 +17,16 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    Flowable,
+    KeepTogether,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 from make_report import (
     CATEGORY_META,
@@ -41,6 +50,7 @@ PILL = {
     "missing": (HexColor("#9b2c2c"), HexColor("#c53030"), HexColor("#fed7d7")),
     "late": (HexColor("#7b341e"), HexColor("#c05621"), HexColor("#feebc8")),
     "teacher_message": (HexColor("#1a365d"), HexColor("#2b6cb0"), HexColor("#bee3f8")),
+    "type": (HexColor("#2d3748"), HexColor("#a0aec0"), white),
 }
 ACCENT = {
     "missing": HexColor("#c53030"),
@@ -350,7 +360,140 @@ def _build_story(data: dict, regular: str, semi: str, bold: str) -> list:
         story.append(Spacer(1, 8))
         body = "<br/>".join(_esc(note) for note in notes)
         story.append(_paragraph(f"<b>Notes</b><br/>{body}", regular, 9, MUTED, 12))
+    details = data.get("todo_details") or {}
+    if details.get("enabled"):
+        story.append(PageBreak())
+        story.extend(_todo_story(data, details, regular, semi, bold))
     return story
+
+
+def _todo_story(data: dict, details: dict, regular: str, semi: str, bold: str) -> list:
+    student = str(data.get("student") or "Student")
+    overdue = list(details.get("overdue") or [])
+    this_week = list(details.get("this_week") or [])
+    later = list(details.get("later") or [])
+    overdue_color = ACCENT["missing_zero"] if not overdue else ACCENT["missing"]
+    story: list = [
+        _paragraph(_esc(f"{student} — To Do — assignment details"), bold, 18, NAVY, 22),
+        Spacer(1, 4),
+        _paragraph(_esc(details.get("window_label") or ""), regular, 9.5, MUTED, 13),
+        Spacer(1, 10),
+        TileRow(
+            [
+                (str(len(overdue)), "Overdue", overdue_color),
+                (str(len(this_week)), "Due this week", ACCENT["late"]),
+                (str(len(later)), "Due later", ACCENT["message"]),
+            ],
+            bold,
+            semi,
+        ),
+        Spacer(1, 10),
+    ]
+    note = str(details.get("observer_note") or "").strip()
+    if note:
+        story.append(_paragraph(_esc(note), regular, 9, MUTED, 12))
+        story.append(Spacer(1, 8))
+    sections = (
+        ("Overdue", overdue, ACCENT["missing"]),
+        ("Due this week", this_week, ACCENT["late"]),
+        ("Due later", later, ACCENT["message"]),
+    )
+    any_cards = False
+    for heading, cards, color in sections:
+        if not cards:
+            continue
+        any_cards = True
+        story.append(TrackedText(heading, semi, 8, NAVY, tracking=1.0))
+        story.append(Spacer(1, 6))
+        for card in cards:
+            story.append(_todo_card(card, color, regular, semi, bold))
+    if not any_cards:
+        story.append(
+            _paragraph(
+                "Nothing is overdue in this date range, and nothing is due in the days ahead.",
+                regular,
+                10,
+                MUTED,
+                13,
+            )
+        )
+    return story
+
+
+def _todo_card(card: dict, accent: Color, regular: str, semi: str, bold: str) -> KeepTogether:
+    status_kind = {"overdue": "missing", "this_week": "late", "later": "teacher_message"}.get(
+        str(card.get("status")), "teacher_message"
+    )
+    pills = Table(
+        [[
+            Pill(str(card.get("status_label") or "Item"), status_kind, bold),
+            Pill(str(card.get("type_label") or "Item"), "type", bold),
+            _paragraph(_esc(card.get("course") or ""), semi, 9, MUTED, 12),
+        ]],
+        colWidths=[78, 78, 5.4 * inch],
+    )
+    pills.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (1, 0), 6),
+                ("RIGHTPADDING", (2, 0), (2, 0), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]
+        )
+    )
+    bits = [
+        pills,
+        Spacer(1, 3),
+        _paragraph(_esc(card.get("title") or "Untitled"), bold, 12, INK, 15),
+        _paragraph(_esc(card.get("due_label") or ""), regular, 9.5, MUTED, 12),
+    ]
+    meta = str(card.get("meta") or "").strip()
+    link = str(card.get("html_url") or "").strip()
+    meta_line = _esc(meta)
+    if link:
+        link_html = f'<link href="{_esc(link)}" color="#1b365d"><u>Open in Canvas</u></link>'
+        meta_line = f"{meta_line} · {link_html}" if meta_line else link_html
+    if meta_line:
+        bits.append(_paragraph(meta_line, regular, 9, INK, 12))
+    locked = str(card.get("locked_until") or "").strip()
+    if locked:
+        bits.append(_paragraph(_esc(locked), semi, 9, HexColor("#7b341e"), 12))
+    description = str(card.get("description") or "").strip()
+    if description:
+        bits.append(Spacer(1, 3))
+        bits.append(_paragraph("DESCRIPTION", semi, 7.5, NAVY, 10))
+        bits.append(_paragraph(_esc(description), regular, 9, INK, 12))
+    rubric = str(card.get("rubric") or "").strip()
+    if rubric:
+        bits.append(_paragraph(_esc(rubric), regular, 9, INK, 12))
+    messages = [str(line) for line in (card.get("messages") or []) if line]
+    bits.append(Spacer(1, 3))
+    bits.append(_paragraph("RELATED MESSAGES", semi, 7.5, NAVY, 10))
+    if messages:
+        for line in messages:
+            bits.append(_paragraph("• " + _esc(line), regular, 9, INK, 12))
+    else:
+        bits.append(_paragraph("No related messages.", regular, 9, MUTED, 12))
+    inner = Table([[bits]], colWidths=[7.05 * inch])
+    inner.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), TILE_BG),
+                ("BOX", (0, 0), (-1, -1), 0.7, LINE),
+                ("LINEBEFORE", (0, 0), (0, 0), 5, accent),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return KeepTogether([inner, Spacer(1, 8)])
 
 
 def _draw_chrome(canvas, doc, total_pages: int, footer: str, regular: str) -> None:

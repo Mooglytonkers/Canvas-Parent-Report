@@ -60,7 +60,10 @@ class SettingsDialog(QDialog):
         tabs.addTab(self._page(self.address, self.token), "School")
         tabs.addTab(self._page(self.header), "Report")
         tabs.addTab(self._page(self.delivery), "Delivery")
-        tabs.addTab(self._page(self.options), "Options")
+        options_note = QLabel("The defaults work for most families.")
+        options_note.setObjectName("muted")
+        options_note.setWordWrap(True)
+        tabs.addTab(self._page(options_note, self.options), "Options")
         tabs.addTab(self._page(self.schedule), "Schedule")
         layout.addWidget(tabs, 1)
 

@@ -144,6 +144,36 @@ QFrame#helpBox {
     border-radius: 10px;
 }
 QCheckBox { spacing: 8px; background: transparent; }
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #6d7c8a;
+    border-radius: 4px;
+    background: #ffffff;
+}
+QCheckBox::indicator:hover {
+    border: 1px solid #1f6f78;
+    background: #f3fbfb;
+}
+QCheckBox::indicator:checked {
+    border: 1px solid #1f6f78;
+    background: #1f6f78;
+    image: url(__CHECK__);
+}
+QCheckBox::indicator:checked:hover {
+    border: 1px solid #185e66;
+    background: #185e66;
+    image: url(__CHECK__);
+}
+QCheckBox::indicator:disabled {
+    border: 1px solid #d5dde6;
+    background: #f4f7fa;
+}
+QCheckBox::indicator:checked:disabled {
+    border: 1px solid #b7c5c8;
+    background: #b7c5c8;
+    image: url(__CHECK__);
+}
 QProgressBar {
     background: #e1e8ee;
     border: none;
@@ -253,7 +283,10 @@ def apply_theme(app) -> None:
             app.setFont(QFont(name, 11))
             break
     arrow = resource_path("chevron.png")
+    check = resource_path("check.png")
     sheet = STYLESHEET
     if arrow.is_file():
         sheet = sheet.replace("__CHEVRON__", arrow.as_posix())
+    if check.is_file():
+        sheet = sheet.replace("__CHECK__", check.as_posix())
     app.setStyleSheet(sheet)

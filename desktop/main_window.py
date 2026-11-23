@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 from desktop.forms import Banner
 from desktop.paths import resource_path
 from desktop.runner import RunResult, execute_report
-from desktop.schedule import friendly_when, next_occurrence
+from desktop.schedule import friendly_when, next_occurrence, schedule_plan
 from desktop.store import load_config, load_history
 from desktop.theme import style_primary
 from desktop.version import APP_NAME, APP_VERSION
@@ -210,10 +210,11 @@ class MainWindow(QWidget):
 
     def refresh(self) -> None:
         config = load_config()
-        upcoming = next_occurrence(config.schedule_days, [config.morning, config.evening])
+        days, times = schedule_plan(config)
+        upcoming = next_occurrence(days, times)
         if upcoming:
             self.next_value.setText("Next scheduled run: " + friendly_when(upcoming))
-        elif config.schedule_days:
+        elif days:
             self.next_value.setText("Next scheduled run: not scheduled")
         else:
             self.next_value.setText("Automatic runs are off.")

@@ -610,15 +610,25 @@ class OptionsForm(QWidget):
                 "It only works with the student's own token, not a parent token."
             )
         )
+        self.details = QCheckBox("Add To Do details pages")
+        self.details.setChecked(False)
+        layout.addWidget(self.details)
+        layout.addWidget(
+            hint(
+                "Adds pages after the summary, with one card for each open To Do item: overdue work from your start date, plus items due in the next 14 days."
+            )
+        )
         layout.addStretch(1)
 
     def apply(self, config: AppConfig) -> None:
         config.graded_counts_as_submitted = self.graded.isChecked()
         config.mark_graded_todos_done = self.todos.isChecked()
+        config.todo_detail_page = self.details.isChecked()
 
     def load(self, config: AppConfig) -> None:
         self.graded.setChecked(config.graded_counts_as_submitted)
         self.todos.setChecked(config.mark_graded_todos_done)
+        self.details.setChecked(config.todo_detail_page)
 
 
 class ScheduleForm(QWidget):
@@ -627,11 +637,22 @@ class ScheduleForm(QWidget):
         layout = _vbox(self)
         layout.addWidget(
             hint(
-                "The computer needs to be on and signed in to Windows at these times. "
+                "The computer needs to be on and signed in to Windows when the report should run. "
                 "You can change this later in Settings."
             )
         )
-        layout.addWidget(field_label("Days"))
+        layout.addWidget(field_label("How often"))
+        self.frequency = QComboBox()
+        self.frequency.addItem("Twice a day", "twice")
+        self.frequency.addItem("Once a day", "daily")
+        self.frequency.addItem("Once a week", "weekly")
+        self.frequency.currentIndexChanged.connect(self._sync_frequency)
+        layout.addWidget(self.frequency)
+
+        self.day_wrap = QWidget()
+        day_layout = QVBoxLayout(self.day_wrap)
+        day_layout.setContentsMargins(0, 0, 0, 0)
+        day_layout.addWidget(field_label("Days"))
         day_row = QHBoxLayout()
         self.days: dict[str, QCheckBox] = {}
         for key, label in DAYS:
@@ -639,47 +660,91 @@ class ScheduleForm(QWidget):
             box.setChecked(key not in ("sat", "sun"))
             self.days[key] = box
             day_row.addWidget(box)
-        layout.addLayout(day_row)
+        day_layout.addLayout(day_row)
+        layout.addWidget(self.day_wrap)
+
+        self.weekly_wrap = QWidget()
+        weekly_layout = QVBoxLayout(self.weekly_wrap)
+        weekly_layout.setContentsMargins(0, 0, 0, 0)
+        weekly_layout.addWidget(field_label("Day"))
+        self.weekly_day = QComboBox()
+        for key, label in DAYS:
+            self.weekly_day.addItem(label, key)
+        weekly_layout.addWidget(self.weekly_day)
+        layout.addWidget(self.weekly_wrap)
+
         times = QHBoxLayout()
-        morning_col = QVBoxLayout()
-        morning_col.addWidget(field_label("Morning"))
+        self.morning_wrap = QWidget()
+        morning_col = QVBoxLayout(self.morning_wrap)
+        morning_col.setContentsMargins(0, 0, 0, 0)
+        self.morning_label = field_label("Morning")
+        morning_col.addWidget(self.morning_label)
         self.morning = QTimeEdit()
         self.morning.setDisplayFormat("h:mm AP")
         self.morning.setTime(QTime(6, 45))
         morning_col.addWidget(self.morning)
-        evening_col = QVBoxLayout()
+        self.evening_wrap = QWidget()
+        evening_col = QVBoxLayout(self.evening_wrap)
+        evening_col.setContentsMargins(0, 0, 0, 0)
         evening_col.addWidget(field_label("Evening"))
         self.evening = QTimeEdit()
         self.evening.setDisplayFormat("h:mm AP")
         self.evening.setTime(QTime(18, 45))
         evening_col.addWidget(self.evening)
-        times.addLayout(morning_col)
-        times.addLayout(evening_col)
+        times.addWidget(self.morning_wrap)
+        times.addWidget(self.evening_wrap)
         times.addStretch(1)
         layout.addLayout(times)
         self.missed = QCheckBox("If the computer was off or asleep, run the report after I sign in")
         self.missed.setChecked(True)
         layout.addWidget(self.missed)
         layout.addWidget(
-            hint("This catches a missed morning or evening run the next time Windows is available. It does not run on every sign-in.")
+            hint("This catches a missed run the next time Windows is available. It does not run on every sign-in.")
         )
         layout.addStretch(1)
+        self._sync_frequency()
 
     def selected_days(self) -> list[str]:
         return [key for key, box in self.days.items() if box.isChecked()]
 
+    def _sync_frequency(self) -> None:
+        freq = str(self.frequency.currentData() or "twice")
+        self.day_wrap.setVisible(freq != "weekly")
+        self.weekly_wrap.setVisible(freq == "weekly")
+        self.evening_wrap.setVisible(freq == "twice")
+        self.morning_label.setText("Morning" if freq == "twice" else "Time")
+
+    def set_frequency(self, freq: str) -> None:
+        index = self.frequency.findData(freq)
+        if index >= 0:
+            self.frequency.setCurrentIndex(index)
+        self._sync_frequency()
+
     def apply(self, config: AppConfig) -> None:
-        config.schedule_days = self.selected_days()
+        freq = str(self.frequency.currentData() or "twice")
+        config.frequency = freq
         config.morning = self.morning.time().toString("HH:mm")
         config.evening = self.evening.time().toString("HH:mm")
+        config.daily_time = self.morning.time().toString("HH:mm")
+        config.weekly_day = str(self.weekly_day.currentData() or "mon")
+        if freq == "weekly":
+            config.schedule_days = [config.weekly_day]
+        else:
+            config.schedule_days = self.selected_days()
         config.run_missed_at_signin = self.missed.isChecked()
 
     def load(self, config: AppConfig) -> None:
+        self.set_frequency(config.frequency or "twice")
         chosen = set(config.schedule_days)
         for key, box in self.days.items():
             box.setChecked(key in chosen)
-        self._set_time(self.morning, config.morning or "06:45")
+        index = self.weekly_day.findData(config.weekly_day or "mon")
+        if index >= 0:
+            self.weekly_day.setCurrentIndex(index)
+        self._set_time(self.morning, config.daily_time or config.morning or "06:45")
         self._set_time(self.evening, config.evening or "18:45")
+        if (config.frequency or "twice") == "twice":
+            self._set_time(self.morning, config.morning or "06:45")
         self.missed.setChecked(config.run_missed_at_signin)
 
     def _set_time(self, widget: QTimeEdit, text: str) -> None:

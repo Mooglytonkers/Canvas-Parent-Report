@@ -18,6 +18,14 @@ def _ini_bool(value: bool) -> str:
     return "true" if value else "false"
 
 
+def _safe_days(value: str) -> int:
+    try:
+        days = int(str(value).strip() or "14")
+    except ValueError:
+        return 14
+    return days if 1 <= days <= 60 else 14
+
+
 @dataclass
 class AppConfig:
     base_url: str = ""
@@ -39,9 +47,14 @@ class AppConfig:
     print_enabled: bool = False
     printer_name: str = ""
     print_copies: int = 1
+    todo_detail_page: bool = False
+    todo_days_ahead: int = 14
     schedule_days: list[str] = field(default_factory=lambda: ["mon", "tue", "wed", "thu", "fri"])
+    frequency: str = "twice"
     morning: str = "06:45"
     evening: str = "18:45"
+    daily_time: str = "06:45"
+    weekly_day: str = "mon"
     run_missed_at_signin: bool = True
     setup_complete: bool = False
 
@@ -68,6 +81,8 @@ class AppConfig:
             timezone=(self.timezone or "America/New_York").strip() or "America/New_York",
             graded_counts_as_submitted=self.graded_counts_as_submitted,
             mark_graded_todos_done=self.mark_graded_todos_done,
+            todo_detail_page=self.todo_detail_page,
+            todo_days_ahead=self.todo_days_ahead,
             output_dir=output,
             student_user_id=student_id,
             print_enabled=self.print_enabled,
@@ -97,6 +112,10 @@ def load_config(path: Path | None = None) -> AppConfig:
         parser.read(target, encoding="utf-8")
     days_raw = _get(parser, "schedule", "days", "mon,tue,wed,thu,fri")
     days = [part.strip().lower() for part in days_raw.split(",") if part.strip()]
+    # Missing frequency means a 2.0 config: morning and evening, twice a day.
+    frequency = _get(parser, "schedule", "frequency", "").strip().lower() or "twice"
+    if frequency not in ("twice", "daily", "weekly"):
+        frequency = "twice"
     start_default = default_school_year_start().isoformat()
     copies_raw = _get(parser, "print", "copies", "1") or "1"
     port_raw = _get(parser, "email", "smtp_port", "587") or "587"
@@ -122,6 +141,8 @@ def load_config(path: Path | None = None) -> AppConfig:
         mark_graded_todos_done=_as_bool(
             _get(parser, "todo", "mark_graded_todos_done", "false"), False
         ),
+        todo_detail_page=_as_bool(_get(parser, "todo", "todo_detail_page", "false"), False),
+        todo_days_ahead=_safe_days(_get(parser, "todo", "todo_days_ahead", "14")),
         email_enabled=_as_bool(_get(parser, "email", "enabled", "false"), False),
         email_to=_get(parser, "email", "to"),
         email_from=_get(parser, "email", "from"),
@@ -133,8 +154,11 @@ def load_config(path: Path | None = None) -> AppConfig:
         printer_name=_get(parser, "print", "printer_name"),
         print_copies=copies,
         schedule_days=days or ["mon", "tue", "wed", "thu", "fri"],
+        frequency=frequency,
         morning=_get(parser, "schedule", "morning", "06:45") or "06:45",
         evening=_get(parser, "schedule", "evening", "18:45") or "18:45",
+        daily_time=_get(parser, "schedule", "daily_time", "") or _get(parser, "schedule", "morning", "06:45") or "06:45",
+        weekly_day=_get(parser, "schedule", "weekly_day", "mon") or "mon",
         run_missed_at_signin=_as_bool(
             _get(parser, "schedule", "run_missed_at_signin", "true"), True
         ),
@@ -162,6 +186,8 @@ def save_config(config: AppConfig, path: Path | None = None) -> Path:
     }
     parser["todo"] = {
         "mark_graded_todos_done": _ini_bool(config.mark_graded_todos_done),
+        "todo_detail_page": _ini_bool(config.todo_detail_page),
+        "todo_days_ahead": str(config.todo_days_ahead or 14),
     }
     parser["email"] = {
         "enabled": _ini_bool(config.email_enabled),
@@ -178,9 +204,12 @@ def save_config(config: AppConfig, path: Path | None = None) -> Path:
         "copies": str(config.print_copies or 1),
     }
     parser["schedule"] = {
+        "frequency": config.frequency or "twice",
         "days": ",".join(days),
         "morning": config.morning.strip() or "06:45",
         "evening": config.evening.strip() or "18:45",
+        "daily_time": config.daily_time.strip() or config.morning.strip() or "06:45",
+        "weekly_day": config.weekly_day.strip() or "mon",
         "run_missed_at_signin": _ini_bool(config.run_missed_at_signin),
     }
     parser["app"] = {"setup_complete": _ini_bool(config.setup_complete)}
