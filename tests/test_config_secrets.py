@@ -146,8 +146,9 @@ class ConfigSecretTests(unittest.TestCase):
             self.assertEqual(saved["CANVAS_TOKEN"], "canvas-token")
             self.assertEqual(saved["SMTP_PASSWORD"], "p@ss word")
             self.assertEqual(saved["SMTP_USERNAME"], "reports@example.com")
-            mode = (root / ".env").stat().st_mode & 0o777
-            self.assertEqual(mode, 0o600)
+            if os.name != "nt":
+                mode = (root / ".env").stat().st_mode & 0o777
+                self.assertEqual(mode, 0o600)
             load_dotenv(root / ".env")
             self.assertEqual(os.environ["SMTP_PASSWORD"], "p@ss word")
             self.assertNotIn("p@ss word", (root / "config.ini").read_text(encoding="utf-8") if (root / "config.ini").exists() else "")

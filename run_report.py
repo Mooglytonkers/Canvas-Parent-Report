@@ -58,6 +58,7 @@ def finish_report(
     do_print: bool = False,
     no_print: bool = False,
     no_todo: bool = False,
+    outcomes: dict | None = None,
 ) -> int:
     """Run To Do, print, and email steps. Print and email failures stay isolated."""
     summary: list[str] = [f"Report: {report_path}"]
@@ -127,6 +128,9 @@ def finish_report(
     print("-------")
     for line in summary:
         print(line)
+    if outcomes is not None:
+        outcomes["summary"] = list(summary)
+        outcomes["code"] = code
     return code
 
 

@@ -3,3 +3,5 @@
 # built, the scripts fall back to HTML that you can open in a browser.
 # See the README for operating-system install notes.
 weasyprint>=62.0
+# Windows Python does not ship the IANA timezone database.
+tzdata>=2024.1
