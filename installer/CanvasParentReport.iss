@@ -1,8 +1,8 @@
-; Inno Setup script for Canvas Parent Report 2.0.0.
+; Inno Setup script for Canvas Parent Report 2.1.0.
 ; Per-user install so a parent is not asked for an administrator password.
 
 #define MyAppName "Canvas Parent Report"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Cooper Street Press"
 #define MyAppExeName "CanvasParentReport.exe"
 #define MyAppId "{{8C4E2A71-5B19-4D33-9F60-2A7C1E8B44D0}"
@@ -16,7 +16,7 @@ DefaultDirName={localappdata}\Canvas Parent Report
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=Output
-OutputBaseFilename=CanvasParentReport-Setup-2.0.0
+OutputBaseFilename=CanvasParentReport-Setup-2.1.0
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2

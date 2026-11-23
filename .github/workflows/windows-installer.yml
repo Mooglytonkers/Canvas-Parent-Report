@@ -58,8 +58,8 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CanvasParentReport-Setup-2.0.0
-          path: installer/Output/CanvasParentReport-Setup-2.0.0.exe
+          name: CanvasParentReport-Setup-2.1.0
+          path: installer/Output/CanvasParentReport-Setup-2.1.0.exe
           if-no-files-found: error
 
   release:
@@ -73,13 +73,13 @@ jobs:
       - name: Download installer
         uses: actions/download-artifact@v4
         with:
-          name: CanvasParentReport-Setup-2.0.0
+          name: CanvasParentReport-Setup-2.1.0
           path: installer/Output
 
       - name: Attach installer to the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          files: installer/Output/CanvasParentReport-Setup-2.0.0.exe
+          files: installer/Output/CanvasParentReport-Setup-2.1.0.exe
           overwrite_files: true
           fail_on_unmatched_files: false

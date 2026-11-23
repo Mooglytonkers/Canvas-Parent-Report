@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0 — 2026-11-23
+
+- Optional To Do detail pages, off by default. After the summary, the PDF can add one card per open To Do item: overdue work from the start date, plus items due in the next 14 days.
+- The schedule can be twice a day, once a day, or once a week. Older settings that saved a morning and an evening time stay twice a day.
+
 ## 2.0.0 — 2026-11-23
 
 - Windows desktop app with a first-run setup wizard. Parents do not need Python or a command line.
