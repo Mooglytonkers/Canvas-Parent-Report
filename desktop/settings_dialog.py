@@ -16,6 +16,7 @@ from desktop.printers import list_installed_printers
 from desktop.schedule import install_schedule, launch_parts
 from desktop.secrets import get_smtp_password, get_token, set_smtp_password, set_token
 from desktop.store import AppConfig, load_config, save_config
+from desktop.theme import style_primary
 
 
 class SettingsDialog(QDialog):
@@ -68,7 +69,7 @@ class SettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
         save = buttons.button(QDialogButtonBox.StandardButton.Save)
         if save is not None:
-            save.setObjectName("primary")
+            style_primary(save)
         layout.addWidget(buttons)
 
     def _page(self, *widgets: QWidget) -> QWidget:

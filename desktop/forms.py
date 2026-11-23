@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from desktop.connection import settings_page_url, test_connection, validate_base_url
+from desktop.theme import style_primary
 from desktop.paths import default_save_dir, secret_storage_note
 from desktop.store import AppConfig, default_start_date
 
@@ -180,7 +181,7 @@ class TokenForm(QWidget):
         self.open_button.setObjectName("secondary")
         self.open_button.clicked.connect(self.open_settings)
         self.test_button = QPushButton("Test connection")
-        self.test_button.setObjectName("primary")
+        style_primary(self.test_button)
         self.test_button.clicked.connect(self.test)
         actions.addWidget(self.open_button)
         actions.addWidget(self.test_button)

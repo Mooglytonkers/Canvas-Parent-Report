@@ -25,6 +25,12 @@ class RunResult:
     preview: list[dict] = field(default_factory=list)
 
 
+def _score(value: object) -> str:
+    if value is None or value == "":
+        return ""
+    return str(value)
+
+
 def _preview(data: dict) -> list[dict]:
     rows: list[dict] = []
     for kind, key in (("Missing", "missing"), ("Late", "late")):
@@ -35,6 +41,7 @@ def _preview(data: dict) -> list[dict]:
                     "course": item.get("course") or "",
                     "assignment": item.get("assignment") or "",
                     "due": item.get("due") or "",
+                    "score": _score(item.get("score")),
                 }
             )
             if len(rows) >= 8:
@@ -108,6 +115,7 @@ def execute_report(config: AppConfig | None = None) -> RunResult:
     summary = list(outcomes.get("summary") or [])
     missing = len(data.get("missing") or [])
     late = len(data.get("late") or [])
+    messages = len(data.get("teacher_messages") or [])
     result = RunResult(
         ok=code == 0,
         code=code,
@@ -124,6 +132,7 @@ def execute_report(config: AppConfig | None = None) -> RunResult:
             "ok": result.ok,
             "missing": missing,
             "late": late,
+            "messages": messages,
             "pdf": result.pdf_path,
             "message": result.message,
             "preview": result.preview,

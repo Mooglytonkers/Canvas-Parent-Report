@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from desktop.theme import style_primary
 from desktop.forms import (
     AddressForm,
     Banner,
@@ -58,9 +59,11 @@ def _scroll(widget: QWidget) -> QScrollArea:
     scroll.setWidgetResizable(True)
     scroll.setFrameShape(QScrollArea.Shape.NoFrame)
     scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-    scroll.setStyleSheet("QScrollArea { background: #f3f6f8; border: none; }")
-    scroll.viewport().setStyleSheet("background: #f3f6f8;")
-    widget.setStyleSheet("background: #f3f6f8;")
+    scroll.setStyleSheet(
+        "QScrollArea { background: #f3f6f8; border: none; }"
+        "QWidget#page { background: #f3f6f8; }"
+    )
+    widget.setObjectName("page")
     scroll.setWidget(widget)
     return scroll
 
@@ -159,11 +162,11 @@ class SetupWizard(QWidget):
         self.back_button.setObjectName("secondary")
         self.back_button.clicked.connect(self.back)
         self.next_button = QPushButton("Get started")
-        self.next_button.setObjectName("primary")
+        style_primary(self.next_button)
         self.next_button.clicked.connect(self.next)
         self.next_button.setDefault(True)
         self.run_button = QPushButton("Run a report now")
-        self.run_button.setObjectName("primary")
+        style_primary(self.run_button)
         self.run_button.clicked.connect(lambda: self._finish(run_now=True))
         self.run_button.hide()
         footer.addWidget(self.back_button)

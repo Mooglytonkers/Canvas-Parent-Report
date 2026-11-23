@@ -1,20 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for the Windows desktop app (one folder, wrapped by Inno Setup)."""
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 hidden = []
+datas = [
+    ("assets/icon.ico", "assets"),
+    ("assets/icon.png", "assets"),
+    ("assets/chevron.png", "assets"),
+]
 for package in ("keyring.backends", "reportlab"):
     try:
         hidden.extend(collect_submodules(package))
     except Exception:
         pass
+try:
+    datas.extend(collect_data_files("tzdata"))
+except Exception:
+    pass
 
 a = Analysis(
     ["desktop_app.py"],
     pathex=["."],
     binaries=[],
-    datas=[("assets/icon.ico", "assets"), ("assets/icon.png", "assets")],
+    datas=datas,
     hiddenimports=hidden
     + [
         "desktop",
@@ -26,6 +35,7 @@ a = Analysis(
         "report_pdf",
         "reportlab.pdfgen",
         "reportlab.platypus",
+        "tzdata",
     ],
     hookspath=[],
     hooksconfig={},

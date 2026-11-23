@@ -12,8 +12,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
-    QListWidget,
     QPushButton,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -25,6 +25,7 @@ from desktop.paths import resource_path
 from desktop.runner import RunResult, execute_report
 from desktop.schedule import friendly_when, next_occurrence
 from desktop.store import load_config, load_history
+from desktop.theme import style_primary
 from desktop.version import APP_NAME, APP_VERSION
 from desktop.workers import FnWorker
 
@@ -111,7 +112,7 @@ class MainWindow(QWidget):
         text_col.addWidget(self.next_value)
         status_layout.addLayout(text_col, 1)
         self.run_button = QPushButton("Run report now")
-        self.run_button.setObjectName("primary")
+        style_primary(self.run_button)
         self.run_button.setMinimumSize(190, 52)
         self.run_button.clicked.connect(self.start_report)
         status_layout.addWidget(self.run_button, alignment=Qt.AlignmentFlag.AlignVCenter)
@@ -126,24 +127,18 @@ class MainWindow(QWidget):
         self.who.setObjectName("muted")
         latest_layout.addWidget(self.who)
         counts = QHBoxLayout()
+        counts.setSpacing(12)
         missing_box, self.missing_value = _count_box("Missing", "#c53030")
         late_box, self.late_value = _count_box("Late", "#c05621")
-        counts.addWidget(missing_box)
-        counts.addWidget(late_box)
-        counts.addStretch(1)
+        message_box, self.message_value = _count_box("Teacher messages", "#2b6cb0")
+        for box in (missing_box, late_box, message_box):
+            box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            counts.addWidget(box, 1)
         latest_layout.addLayout(counts)
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["Category", "Course", "Assignment", "Due"])
-        self.table.verticalHeader().setVisible(False)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
-        self.table.setShowGrid(False)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.setMinimumHeight(150)
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(["Category", "Course", "Assignment", "Due", "Score"])
+        self._prepare_table(self.table, stretch=2, right_columns={3, 4})
+        self.table.setMinimumHeight(168)
         latest_layout.addWidget(self.table)
         buttons = QHBoxLayout()
         self.open_pdf = QPushButton("Open PDF")
@@ -159,13 +154,51 @@ class MainWindow(QWidget):
         root.addWidget(latest, 1)
 
         root.addWidget(self._section("Recent reports"))
-        self.history = QListWidget()
-        self.history.setMaximumHeight(140)
+        self.history_empty = QLabel("No reports yet. Run a report and each one will be listed here.")
+        self.history_empty.setObjectName("muted")
+        self.history_empty.setWordWrap(True)
+        self.history = QTableWidget(0, 5)
+        self.history.setHorizontalHeaderLabels(["When", "Missing", "Late", "Messages", "Result"])
+        self._prepare_table(self.history, stretch=0, right_columns=set())
+        history_header = self.history.horizontalHeader()
+        history_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for column, width in ((1, 110), (2, 90), (3, 130), (4, 110)):
+            history_header.setSectionResizeMode(column, QHeaderView.ResizeMode.Fixed)
+            self.history.setColumnWidth(column, width)
+        self.history.setMaximumHeight(168)
+        root.addWidget(self.history_empty)
         root.addWidget(self.history)
         version = QLabel(f"Version {APP_VERSION}")
         version.setObjectName("muted")
         root.addWidget(version)
         self.refresh()
+
+    def _prepare_table(self, table: QTableWidget, *, stretch: int, right_columns: set[int]) -> None:
+        table.verticalHeader().setVisible(False)
+        table.verticalHeader().setDefaultSectionSize(36)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        table.setShowGrid(False)
+        table.setWordWrap(False)
+        header = table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        header.setStretchLastSection(False)
+        for column in range(table.columnCount()):
+            mode = (
+                QHeaderView.ResizeMode.Stretch
+                if column == stretch
+                else QHeaderView.ResizeMode.ResizeToContents
+            )
+            header.setSectionResizeMode(column, mode)
+            item = table.horizontalHeaderItem(column)
+            if item is None:
+                continue
+            align = (
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                if column in right_columns
+                else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            )
+            item.setTextAlignment(align)
 
     def _section(self, text: str) -> QLabel:
         label = QLabel(text)
@@ -185,17 +218,27 @@ class MainWindow(QWidget):
         else:
             self.next_value.setText("Automatic runs are off.")
         rows = load_history()
-        self.history.clear()
         if not rows:
-            self.history.addItem("No reports yet.")
+            self.history.setRowCount(0)
+            self.history.hide()
+            self.history_empty.show()
             self._show_empty()
             return
-        for row in rows:
-            when = _friendly_stamp(str(row.get("at") or ""))
-            state = "Saved" if row.get("ok") else "Problem"
-            self.history.addItem(
-                f"{when}    {row.get('missing', 0)} missing, {row.get('late', 0)} late    {state}"
-            )
+        self.history_empty.hide()
+        self.history.show()
+        self.history.setRowCount(len(rows))
+        for index, row in enumerate(rows):
+            values = [
+                _friendly_stamp(str(row.get("at") or "")) or "—",
+                str(row.get("missing", 0)),
+                str(row.get("late", 0)),
+                str(row.get("messages", 0)),
+                "Saved" if row.get("ok") else "Problem",
+            ]
+            for column, text in enumerate(values):
+                cell = QTableWidgetItem(text)
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                self.history.setItem(index, column, cell)
         self._show_entry(rows[0])
 
     def _show_empty(self) -> None:
@@ -204,6 +247,7 @@ class MainWindow(QWidget):
         self.who.setText("The latest PDF will be summarized here.")
         self.missing_value.setText("—")
         self.late_value.setText("—")
+        self.message_value.setText("—")
         self.table.setRowCount(0)
         self._pdf = ""
         self.open_pdf.setEnabled(False)
@@ -220,6 +264,7 @@ class MainWindow(QWidget):
         self.who.setText(who or "Latest report")
         self.missing_value.setText(str(row.get("missing", 0)))
         self.late_value.setText(str(row.get("late", 0)))
+        self.message_value.setText(str(row.get("messages", 0)))
         missing_color = "#2f855a" if str(row.get("missing", 0)) == "0" else "#c53030"
         self.missing_value.setStyleSheet(
             "font-size: 28px; font-weight: 650; "
@@ -227,9 +272,23 @@ class MainWindow(QWidget):
         )
         preview = row.get("preview") or []
         self.table.setRowCount(len(preview))
+        keys = ("category", "course", "assignment", "due", "score")
         for index, item in enumerate(preview):
-            for column, key in enumerate(("category", "course", "assignment", "due")):
-                cell = QTableWidgetItem(str(item.get(key) or "—"))
+            for column, key in enumerate(keys):
+                raw = item.get(key)
+                if key == "due":
+                    text = friendly_due(raw)
+                elif key == "score":
+                    text = "—" if raw is None or raw == "" else str(raw)
+                else:
+                    text = str(raw) if raw else "—"
+                cell = QTableWidgetItem(text)
+                align = (
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                    if column >= 3
+                    else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                )
+                cell.setTextAlignment(align)
                 self.table.setItem(index, column, cell)
         self._pdf = str(row.get("pdf") or "")
         exists = bool(self._pdf) and Path(self._pdf).is_file()
@@ -280,6 +339,17 @@ class MainWindow(QWidget):
             return
         folder = str(Path(self._pdf).parent)
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
+
+def friendly_due(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "—"
+    try:
+        moment = datetime.strptime(text[:10], "%Y-%m-%d")
+    except ValueError:
+        return text
+    return f"{moment.strftime('%b')} {moment.day}"
 
 
 def _friendly_stamp(value: str) -> str:

@@ -65,32 +65,63 @@ QLineEdit, QComboBox, QDateEdit, QTimeEdit, QSpinBox {
 QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QTimeEdit:focus, QSpinBox:focus {
     border: 1px solid #1f6f78;
 }
+QComboBox, QDateEdit, QTimeEdit {
+    padding-right: 28px;
+}
 QComboBox::drop-down, QDateEdit::drop-down, QTimeEdit::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 28px;
     border: none;
-    width: 24px;
+    background: transparent;
+}
+QComboBox::down-arrow, QDateEdit::down-arrow, QTimeEdit::down-arrow {
+    image: url(__CHEVRON__);
+    width: 12px;
+    height: 8px;
 }
 QPushButton#primary {
-    background: #1f6f78;
+    background-color: #1f6f78;
     color: #ffffff;
-    border: none;
+    border: 1px solid #1f6f78;
     border-radius: 10px;
     padding: 10px 18px;
     min-height: 22px;
     font-weight: 650;
 }
-QPushButton#primary:hover { background: #185e66; }
-QPushButton#primary:pressed { background: #134e55; }
-QPushButton#primary:disabled { background: #b7c5c8; color: #f7fbfb; }
+QPushButton#primary:hover {
+    background-color: #185e66;
+    color: #ffffff;
+    border: 1px solid #185e66;
+}
+QPushButton#primary:pressed {
+    background-color: #134e55;
+    color: #ffffff;
+    border: 1px solid #134e55;
+}
+QPushButton#primary:disabled {
+    background-color: #d7e6e8;
+    color: #3e5c61;
+    border: 1px solid #d7e6e8;
+}
 QPushButton#secondary {
-    background: #ffffff;
+    background-color: #ffffff;
     color: #1b2838;
     border: 1px solid #cfd8e3;
     border-radius: 10px;
     padding: 10px 18px;
     min-height: 22px;
 }
-QPushButton#secondary:hover { background: #f4f7fa; }
-QPushButton#secondary:disabled { color: #8aa; }
+QPushButton#secondary:hover {
+    background-color: #f4f7fa;
+    color: #1b2838;
+    border: 1px solid #cfd8e3;
+}
+QPushButton#secondary:disabled {
+    background-color: #f4f7fa;
+    color: #8aa0ad;
+    border: 1px solid #e4ebf2;
+}
 QPushButton#link {
     background: transparent;
     color: #1f6f78;
@@ -137,8 +168,11 @@ QHeaderView::section {
     color: #5d6d7e;
     border: none;
     border-bottom: 1px solid #e4ebf2;
-    padding: 8px;
+    padding: 8px 12px;
     font-weight: 650;
+}
+QTableWidget::item {
+    padding: 8px 12px;
 }
 QListWidget {
     background: #ffffff;
@@ -169,9 +203,46 @@ QTabBar::tab:selected {
 """
 
 
+PRIMARY_BUTTON = """
+QPushButton {
+    background-color: #1f6f78;
+    color: #ffffff;
+    border: 1px solid #1f6f78;
+    border-radius: 10px;
+    padding: 10px 18px;
+    min-height: 22px;
+    font-weight: 600;
+}
+QPushButton:hover {
+    background-color: #185e66;
+    color: #ffffff;
+    border: 1px solid #185e66;
+}
+QPushButton:pressed {
+    background-color: #134e55;
+    color: #ffffff;
+    border: 1px solid #134e55;
+}
+QPushButton:disabled {
+    background-color: #d7e6e8;
+    color: #3e5c61;
+    border: 1px solid #d7e6e8;
+}
+"""
+
+
+def style_primary(button) -> None:
+    """Paint a filled button on the widget itself so a parent rule cannot wash it out."""
+    button.setObjectName("primary")
+    button.setFlat(False)
+    button.setStyleSheet(PRIMARY_BUTTON)
+
+
 def apply_theme(app) -> None:
     from PySide6.QtGui import QFont, QFontDatabase
     from PySide6.QtWidgets import QApplication
+
+    from desktop.paths import resource_path
 
     if not isinstance(app, QApplication):
         return
@@ -181,4 +252,8 @@ def apply_theme(app) -> None:
         if name in families:
             app.setFont(QFont(name, 11))
             break
-    app.setStyleSheet(STYLESHEET)
+    arrow = resource_path("chevron.png")
+    sheet = STYLESHEET
+    if arrow.is_file():
+        sheet = sheet.replace("__CHEVRON__", arrow.as_posix())
+    app.setStyleSheet(sheet)
