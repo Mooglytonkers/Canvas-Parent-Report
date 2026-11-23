@@ -1,5 +1,8 @@
-# Fetch Canvas data, build the missing-work PDF, and follow config.ini options.
-# Reads CANVAS_TOKEN from the environment or a local .env file; never prints it.
+# Fetch Canvas data, build the missing-work PDF, then follow config.ini:
+# mark To Dos, print, and email, in that order, when each one is enabled.
+# Flags such as --print, --no-print, --test-print, and --test-email are forwarded.
+# Reads CANVAS_TOKEN and SMTP_PASSWORD from the environment or a local .env file;
+# never prints them.
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 

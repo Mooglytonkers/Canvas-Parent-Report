@@ -1,4 +1,7 @@
 @echo off
+rem Fetch Canvas data, build the PDF, then mark To Dos, print, and email
+rem when each option is enabled. Forwards flags such as --print, --no-print,
+rem --test-print, and --test-email. Never prints CANVAS_TOKEN or SMTP_PASSWORD.
 setlocal EnableExtensions
 cd /d "%~dp0"
 

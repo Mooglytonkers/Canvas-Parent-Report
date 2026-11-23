@@ -2,8 +2,8 @@
 
 A small, free tool that signs in to your school's Canvas site and builds a
 one-page report of a student's **missing** and **late** assignments, plus
-related teacher messages. You can print the PDF, keep a copy, or run it
-automatically on weekdays.
+related teacher messages. Reports can be saved, emailed, and/or printed
+automatically, including on a weekday schedule.
 
 This project is not affiliated with Instructure or Canvas.
 
@@ -20,8 +20,11 @@ real courses and assignments.
   and is left off the missing list. A **late** flag can still appear.
 - Includes a teacher message when it is tied to a flagged assignment, or
   when it is a class-wide notice about grades or missing work.
-- Saves a printable one-page PDF. If a PDF cannot be built on your
+- Saves a one-page PDF. If a PDF cannot be built on your
   computer, it writes an HTML file you can open in a browser and print.
+- Optionally emails that PDF. This is **off** until you turn it on.
+  The mail password stays in `.env` on your computer.
+- Optionally prints that PDF. This is **off** until you turn it on.
 - Optionally, after each report, marks graded items done on the student's
   Canvas To Do list. This is **off** until you turn it on. It only changes
   checkmarks; it does not submit work or change grades.
@@ -177,7 +180,15 @@ Settings you will usually want to review in `config.ini`:
 | `output_dir` | Where JSON and PDF files are saved (default: `output`) |
 | `student_user_id` | Only for a parent account linked to more than one student |
 | `notice_keywords` | Words that identify a class-wide notice about grades or missing work |
-| `print_command` | Optional command to send the PDF to a printer |
+| `enabled` under `[email]` | `EMAIL_ENABLED`. Default `false`. Email the PDF after each report |
+| `to`, `from` | `EMAIL_TO` (comma-separated) and `EMAIL_FROM` |
+| `smtp_host`, `smtp_port`, `smtp_use_tls` | `SMTP_HOST`, `SMTP_PORT` (default `587`), `SMTP_USE_TLS` (STARTTLS unless the port is 465) |
+| `enabled` under `[print]` | `PRINT_ENABLED`. Default `false`. Print the PDF after each report |
+| `printer_name`, `copies` | `PRINTER_NAME` (blank = system default) and `PRINT_COPIES` (default `1`) |
+| `print_command` | Optional custom print command. Leave blank to use the built-in printer support |
+
+`SMTP_USERNAME` and `SMTP_PASSWORD` are not settings in `config.ini`.
+Put them in `.env` only. See [Optional email](#optional-email).
 
 **About marking To Do items done.** If you turn `mark_graded_todos_done`
 on, each run will mark graded planner items complete on the student's
@@ -186,10 +197,12 @@ grades are edited. Leave this off until you have looked at a report and
 are comfortable with the change. It is skipped automatically when you use
 a parent/observer token.
 
-You can also set most of these values with environment variables of the
-same name (`CANVAS_BASE_URL`, `STUDENT_NAME`, `START_DATE`, and so on).
-Environment variables override `config.ini`. `CANVAS_TOKEN` is only read
-from the environment or `.env`, never from `config.ini`.
+You can also set most of these values with environment variables
+(`CANVAS_BASE_URL`, `STUDENT_NAME`, `START_DATE`, `EMAIL_ENABLED`,
+`EMAIL_TO`, `SMTP_HOST`, `PRINT_ENABLED`, `PRINTER_NAME`, and so on).
+Environment variables and `.env` override `config.ini`. `CANVAS_TOKEN`,
+`SMTP_USERNAME`, and `SMTP_PASSWORD` are only read from the environment
+or `.env`, never from `config.ini`.
 
 ### 6. Do a test run
 
@@ -267,16 +280,127 @@ apps if you prefer a point-and-click scheduler.
 
 ---
 
-## Optional printing
+## Optional email
 
-To send each report to a printer automatically, either:
+Email is **off** until you set `enabled = true` under `[email]` in
+`config.ini`, or set `EMAIL_ENABLED=true` in `.env`. After the PDF is
+built, the tool can send it as an attachment. The message subject looks
+like `Canvas report for Alex Sample - Nov 23, 2026 6:45 AM`. The body is
+a plain-text summary of missing and late work, plus an HTML version of
+the same table.
 
-- Run `python3 run_report.py --print` (Windows uses the default printer;
-  macOS and Linux use the `lp` command), or
-- Set `print_command` in `config.ini`. Use `{pdf}` as the placeholder
-  for the file path, for example `lp -d PrinterName {pdf}`.
+The SMTP password is stored **only** in `.env` (or in the `SMTP_PASSWORD`
+environment variable). It is never written to `config.ini`, and the
+scripts never print it. The setup wizard asks for it with a hidden prompt
+and writes it only to `.env`.
 
-The computer and printer both need to be available when the report runs.
+Check the connection without contacting Canvas:
+
+```bash
+python3 run_report.py --test-email
+```
+
+That sends a short test message with a tiny PDF attached, using the
+student name from your settings.
+
+### Gmail
+
+Gmail will not accept your normal account password for SMTP. Turn on
+**2-Step Verification**, then create an **App Password** (Google Account
+→ Security → App passwords; choose Mail). Use that 16-character app
+password as `SMTP_PASSWORD`.
+
+| Setting | Value |
+| --- | --- |
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USE_TLS` | `true` (STARTTLS) |
+| `SMTP_USERNAME` | your full Gmail address |
+| `EMAIL_FROM` | the same Gmail address |
+
+### Outlook and Microsoft 365
+
+| Setting | Value |
+| --- | --- |
+| `SMTP_HOST` | `smtp.office365.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USE_TLS` | `true` (STARTTLS) |
+| `SMTP_USERNAME` | your full Outlook or Microsoft 365 address |
+| `EMAIL_FROM` | that same address |
+
+Some work and school accounts have **SMTP AUTH disabled** by an
+administrator. If the test email says login failed, that is a common
+cause, and the school's mail admin has to allow SMTP AUTH for the
+mailbox. Personal Outlook.com accounts that use two-step verification
+may need an app password instead of the normal password.
+
+### Any other SMTP server
+
+Set `SMTP_HOST` to the server your provider documents. Port **587** with
+`SMTP_USE_TLS=true` means STARTTLS, which is what most providers expect.
+Port **465** uses SSL instead (the tool does this automatically when the
+port is 465, or when `SMTP_USE_TLS` is `ssl`). Put the username and
+password in `.env` only.
+
+`EMAIL_TO` can list more than one address, separated by commas.
+
+---
+
+## Optional automatic printing
+
+Printing is **off** until you set `enabled = true` under `[print]` in
+`config.ini`, or set `PRINT_ENABLED=true` in `.env`. You can also print
+one run with `python3 run_report.py --print`, or skip a configured
+printer with `--no-print`.
+
+| Setting | Meaning |
+| --- | --- |
+| `PRINTER_NAME` | Blank uses the system default printer. Otherwise the exact printer name |
+| `PRINT_COPIES` | How many copies (default `1`, maximum 20). Jobs are sent one at a time |
+
+Try a one-page test print without contacting Canvas:
+
+```bash
+python3 run_report.py --test-print
+```
+
+If `print_command` is set, that custom command is used instead of the
+built-in support below. Leave it blank unless you need something special.
+Use `{pdf}` as the file placeholder.
+
+### Windows
+
+Install [SumatraPDF](https://www.sumatrapdfreader.org/) if you can. It is
+the reliable way to print silently, including to a named printer. The
+tool looks for SumatraPDF first and runs it with `-print-to` (or
+`-print-to-default`) and `-silent`.
+
+If SumatraPDF is not installed, the tool tries Adobe Acrobat or Acrobat
+Reader (`/t` with the printer name). If neither is installed and the
+printer name is blank, it uses the Windows default print action
+(`os.startfile` with `print`). That last option only works for the
+default printer. A named printer needs SumatraPDF or Adobe.
+
+### macOS
+
+Printing uses the built-in `lp` command (`lp -n COPIES` and, when you set
+a name, `-d PRINTER`). List printers with:
+
+```bash
+lpstat -p
+```
+
+Leave `PRINTER_NAME` blank to use the default printer.
+
+### Linux
+
+Printing uses `lp` from CUPS, with the same `-n` and `-d` options as
+macOS. If `lp` is missing, install CUPS (for example the `cups` package
+on Debian or Ubuntu) and confirm the printer is set up. Leave
+`PRINTER_NAME` blank for the default queue.
+
+The computer and the printer both need to be on when the report runs.
+See [Troubleshooting](#troubleshooting) if a job never comes out.
 
 ---
 
@@ -314,6 +438,21 @@ Some schools allow passwords but block API tokens, or they require a
 VPN. Try from the same network you use for Canvas, and confirm that
 Account > Settings still shows the token as active.
 
+**Email login failed, or the test message never arrives.**  
+Check `SMTP_HOST`, `SMTP_PORT`, and `SMTP_USE_TLS`. For Gmail, use an
+App Password (2-Step Verification has to be on), not your normal
+password. For Microsoft 365, some accounts have SMTP AUTH turned off.
+Confirm `SMTP_USERNAME` and `SMTP_PASSWORD` are in `.env`, not in
+`config.ini`. Run `python3 run_report.py --test-email`.
+
+**The report ran, but nothing printed.**  
+Confirm the printer is on and not offline, and that `PRINTER_NAME`
+matches the system name exactly (or is blank for the default). On
+Windows, install SumatraPDF and run `python3 run_report.py --test-print`.
+If the computer is asleep or off at the scheduled time, the task does
+not run and nothing is printed. See the scheduler notes above; the PC
+has to be awake.
+
 ---
 
 ## Privacy
@@ -323,8 +462,11 @@ Account > Settings still shows the token as active.
   it into a chat or email.
 - Reports in the `output` folder contain the student's course and
   assignment names. Treat those as personal information too.
-- This tool talks only to the Canvas website you configure. It does not
-  send your token or report data anywhere else.
+- The Canvas token is sent only to the Canvas website you configure.
+- If email is turned on, the PDF and the missing/late summary are sent
+  through the SMTP server you set (for example Gmail or Outlook) to the
+  addresses in `EMAIL_TO`. The SMTP password stays in `.env` on this
+  computer and is not written to `config.ini`.
 
 ---
 
@@ -333,8 +475,11 @@ Account > Settings still shows the token as active.
 | Command | Purpose |
 | --- | --- |
 | `python3 setup_wizard.py` | Guided setup |
-| `python3 run_report.py` | Fetch data, build the PDF, follow config options |
-| `python3 run_report.py --print` | Same, then send the PDF to a printer |
+| `python3 run_report.py` | Fetch data, build the PDF, then To Do, print, and email when each is enabled |
+| `python3 run_report.py --print` | Same, and print even if printing is off in config |
+| `python3 run_report.py --no-print` | Build the report and do not print |
+| `python3 run_report.py --test-print` | Print a one-page test PDF and exit (no Canvas call) |
+| `python3 run_report.py --test-email` | Send a test email with a tiny PDF attached and exit (no Canvas call) |
 | `python3 run_report.py --no-todo` | Build the report without changing To Do checkmarks |
 | `python3 fetch_canvas.py --list-observees` | List students linked to a parent account |
 | `python3 make_report.py data.json` | Rebuild a PDF from a saved JSON file |

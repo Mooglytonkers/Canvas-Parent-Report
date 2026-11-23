@@ -51,6 +51,17 @@ _ENV_KEYS = (
     "STUDENT_USER_ID",
     "TIMEZONE",
     "PRINT_COMMAND",
+    "PRINT_ENABLED",
+    "PRINTER_NAME",
+    "PRINT_COPIES",
+    "EMAIL_ENABLED",
+    "EMAIL_TO",
+    "EMAIL_FROM",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_USE_TLS",
+    "SMTP_USERNAME",
+    "SMTP_PASSWORD",
     "NOTICE_KEYWORDS",
 )
 
@@ -165,6 +176,49 @@ def _parse_int(value: str | None) -> int | None:
         raise ValueError(f"STUDENT_USER_ID must be a number, got {value!r}.") from exc
 
 
+def _as_port(value: str | None) -> int:
+    text = "587" if value is None or str(value).strip() == "" else str(value).strip()
+    try:
+        port = int(text)
+    except ValueError as exc:
+        raise ValueError(f"SMTP_PORT must be a number, got {value!r}.") from exc
+    if not 1 <= port <= 65535:
+        raise ValueError(f"SMTP_PORT must be between 1 and 65535, got {port}.")
+    return port
+
+
+def _as_copies(value: str | None) -> int:
+    text = "1" if value is None or str(value).strip() == "" else str(value).strip()
+    try:
+        copies = int(text)
+    except ValueError as exc:
+        raise ValueError(f"PRINT_COPIES must be a number, got {value!r}.") from exc
+    if copies < 1:
+        raise ValueError(f"PRINT_COPIES must be at least 1, got {copies}.")
+    if copies > 20:
+        raise ValueError(f"PRINT_COPIES is limited to 20, got {copies}.")
+    return copies
+
+
+def smtp_security(value: str | None, port: int) -> str:
+    """Return 'starttls', 'ssl', or 'plain'. Port 465 always uses SSL."""
+    text = "" if value is None else str(value).strip().lower()
+    if text in ("ssl", "smtps", "implicit"):
+        mode = "ssl"
+    elif text in ("0", "false", "no", "n", "off", "none", "plain"):
+        mode = "plain"
+    elif text in ("", "1", "true", "yes", "y", "on", "starttls", "tls"):
+        mode = "starttls"
+    else:
+        raise ValueError(
+            "SMTP_USE_TLS must be true (STARTTLS), false, or ssl. "
+            f"Got {value!r}."
+        )
+    if port == 465:
+        return "ssl"
+    return mode
+
+
 @dataclass
 class Settings:
     base_url: str = ""
@@ -178,6 +232,17 @@ class Settings:
     output_dir: Path = field(default_factory=lambda: HERE / "output")
     student_user_id: int | None = None
     print_command: str = ""
+    print_enabled: bool = False
+    printer_name: str = ""
+    print_copies: int = 1
+    email_enabled: bool = False
+    email_to: str = ""
+    email_from: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: str = "starttls"
+    smtp_username: str = ""
+    smtp_password: str = ""
     notice_keywords: list[str] = field(default_factory=lambda: list(DEFAULT_NOTICE_KEYWORDS))
     config_path: Path | None = None
 
@@ -254,6 +319,30 @@ def load_settings(config_path: Path | None = None, *, load_env: bool = True) -> 
     todo_since = _as_date(pick("TODO_SINCE_DATE", "todo", "todo_since_date"), "TODO_SINCE_DATE")
 
     print_command = pick("PRINT_COMMAND", "print", "print_command")
+    print_enabled = _as_bool(pick("PRINT_ENABLED", "print", "enabled", "false"), False)
+    printer_name = pick("PRINTER_NAME", "print", "printer_name")
+    print_copies = _as_copies(pick("PRINT_COPIES", "print", "copies", "1"))
+
+    email_enabled = _as_bool(pick("EMAIL_ENABLED", "email", "enabled", "false"), False)
+    email_to = pick("EMAIL_TO", "email", "to")
+    email_from = pick("EMAIL_FROM", "email", "from")
+    smtp_host = pick("SMTP_HOST", "email", "smtp_host")
+    smtp_port = _as_port(pick("SMTP_PORT", "email", "smtp_port", "587"))
+    security = smtp_security(pick("SMTP_USE_TLS", "email", "smtp_use_tls", "true"), smtp_port)
+    # Username and password are never read from config.ini.
+    if _ini_get(parser, "email", "smtp_password"):
+        print(
+            "warning: an SMTP password in config.ini was ignored. "
+            "Put SMTP_PASSWORD in .env only.",
+            file=sys.stderr,
+        )
+    if _ini_get(parser, "email", "smtp_username"):
+        print(
+            "warning: SMTP_USERNAME in config.ini was ignored. Put it in .env only.",
+            file=sys.stderr,
+        )
+    smtp_username = (os.environ.get("SMTP_USERNAME") or "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD") or ""
     keywords = _as_keywords(pick("NOTICE_KEYWORDS", "messages", "notice_keywords"))
 
     settings = Settings(
@@ -268,6 +357,17 @@ def load_settings(config_path: Path | None = None, *, load_env: bool = True) -> 
         output_dir=output_dir,
         student_user_id=student_user_id,
         print_command=print_command,
+        print_enabled=print_enabled,
+        printer_name=printer_name,
+        print_copies=print_copies,
+        email_enabled=email_enabled,
+        email_to=email_to,
+        email_from=email_from,
+        smtp_host=smtp_host,
+        smtp_port=smtp_port,
+        smtp_security=security,
+        smtp_username=smtp_username,
+        smtp_password=smtp_password,
         notice_keywords=keywords,
         config_path=path if path.is_file() else None,
     )
