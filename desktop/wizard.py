@@ -48,7 +48,7 @@ SUBTITLES = (
     "The code Canvas gives you. It stays on this computer.",
     "What parents see at the top of the PDF.",
     "Choose a folder, and turn printing or email on only if you want them.",
-    "Both of these can stay as they are.",
+    "The defaults work for most families.",
     "Choose how often the report should run.",
     "You can run a report now, or open the app and do it later.",
 )

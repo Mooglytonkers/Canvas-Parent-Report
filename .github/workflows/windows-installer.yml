@@ -80,6 +80,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: Canvas Parent Report 2.1.0
+          body: |
+            Download CanvasParentReport-Setup-2.1.0.exe below, then double-click it.
+
+            What's new:
+            - Optional To Do detail pages. They stay off until you turn them on.
+            - Choose how often the report runs: twice a day, once a day, or once a week.
+
+            Windows may say it protected your PC. Choose More info, then Run anyway.
           files: installer/Output/CanvasParentReport-Setup-2.1.0.exe
           overwrite_files: true
           fail_on_unmatched_files: false
